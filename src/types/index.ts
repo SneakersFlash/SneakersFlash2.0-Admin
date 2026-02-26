@@ -1,3 +1,9 @@
+// ─── Re-export all type modules ──────────────────────────────────────────────
+export * from './api.types';
+export * from './auth.types';
+export * from './product.types';
+export * from './order.types';
+
 // ─── Voucher ──────────────────────────────────────────────────────────────────
 
 export type VoucherType = 'FIXED' | 'PERCENT';
@@ -7,10 +13,10 @@ export interface Voucher {
   id: string;
   code: string;
   type: VoucherType;
-  value: number;        // amount (IDR) if FIXED, percentage if PERCENT
+  value: number;
   minOrderAmount: number;
-  maxDiscount?: number; // cap for PERCENT type
-  quota: number;        // total allowed usage
+  maxDiscount?: number;
+  quota: number;
   usedCount: number;
   maxPerUser: number;
   startDate: string;
@@ -116,14 +122,14 @@ export interface InventoryItem {
   size: string;
   color?: string;
   currentStock: number;
-  reservedStock: number;  // items in pending orders
+  reservedStock: number;
   availableStock: number;
   lastUpdated: string;
 }
 
 export interface StockAdjustmentDto {
   variantId: string;
-  adjustment: number;  // positive = add, negative = subtract
+  adjustment: number;
   reason: string;
   notes?: string;
 }
@@ -155,13 +161,13 @@ export interface ShippingRate {
   service: string;
   description: string;
   cost: number;
-  etd: string;  // estimated delivery
+  etd: string;
 }
 
 export interface CheckShippingRateDto {
   originCityId: string;
   destinationCityId: string;
-  weight: number;  // in grams
+  weight: number;
 }
 
 export interface PickupRequest {

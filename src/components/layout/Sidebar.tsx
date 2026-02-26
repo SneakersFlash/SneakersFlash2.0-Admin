@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, CreditCard,
-  Truck, Ticket, Warehouse, Megaphone, Bell, Users,
-  LogOut, ChevronRight, X,
+  Truck, Ticket, Warehouse, Megaphone, Bell, Users, LogOut,
+  ChevronRight, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,19 +17,19 @@ import { Separator } from '@/components/ui/separator';
 
 // ─── Icon Map ─────────────────────────────────────────────────────────────────
 
-const ICON_MAP = {
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'layout-dashboard': LayoutDashboard,
-  'package': Package,
-  'tag': Tag,
-  'shopping-cart': ShoppingCart,
-  'credit-card': CreditCard,
-  'truck': Truck,
-  'ticket': Ticket,
-  'warehouse': Warehouse,
-  'megaphone': Megaphone,
-  'bell': Bell,
-  'users': Users,
-} as const;
+  'package':          Package,
+  'tag':              Tag,
+  'shopping-cart':    ShoppingCart,
+  'credit-card':      CreditCard,
+  'truck':            Truck,
+  'ticket':           Ticket,
+  'warehouse':        Warehouse,
+  'megaphone':        Megaphone,
+  'bell':             Bell,
+  'users':            Users,
+};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -95,14 +95,15 @@ export default function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-700">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {NAV_ITEMS.map((item) => {
-            const Icon = ICON_MAP[item.icon as keyof typeof ICON_MAP];
+            const Icon = ICON_MAP[item.icon];
             const isActive =
               item.href === '/dashboard'
                 ? pathname === '/dashboard'
                 : pathname.startsWith(item.href);
 
+            // Only show badge count for items that have a badge key
             const badgeCount =
               item.badge === 'pendingOrders' ? pendingOrdersCount : 0;
 
@@ -123,9 +124,7 @@ export default function Sidebar({
                   <Icon
                     className={cn(
                       'w-4 h-4 flex-shrink-0',
-                      isActive
-                        ? 'text-gray-900'
-                        : 'text-gray-500 group-hover:text-white',
+                      isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-white',
                     )}
                   />
                 )}

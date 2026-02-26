@@ -11,7 +11,6 @@ import {
 } from 'recharts';
 import StatCard from '@/components/shared/StatCard';
 import PageHeader from '@/components/shared/PageHeader';
-import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency, formatDate, formatRelativeDate } from '@/lib/utils';
 import type { DashboardStats, RevenueChartData, Order } from '@/types';
 
