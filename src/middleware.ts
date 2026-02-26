@@ -1,24 +1,50 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+
+// Routes that don't require authentication
+const PUBLIC_ROUTES = ['/login'];
+
+// Routes that require ADMIN role
+const ADMIN_ROUTES = ['/dashboard'];
 
 export function middleware(request: NextRequest) {
-    const token = request.cookies.get('token')?.value;
-    const isLoginPage = request.nextUrl.pathname === '/';
+  const { pathname } = request.nextUrl;
 
-    // 1. Jika user belum login tapi mau akses dashboard -> Tendang ke Login
-    if (!token && !isLoginPage) {
-        return NextResponse.redirect(new URL('/', request.url));
-    }
+  const accessToken =
+    request.cookies.get('sf_access_token')?.value ?? null;
 
-    // 2. Jika user SUDAH login tapi mau akses halaman login -> Lempar ke Dashboard
-    if (token && isLoginPage) {
-        return NextResponse.redirect(new URL('/dashboard', request.url)); // Ganti /dashboard sesuai route utama Anda
-    }
+  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
+    pathname.startsWith(route),
+  );
 
-    return NextResponse.next();
+  const isAdminRoute = ADMIN_ROUTES.some((route) =>
+    pathname.startsWith(route),
+  );
+
+  // If user has a token and tries to access login → redirect to dashboard
+  if (isPublicRoute && accessToken) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // If user has no token and tries to access a protected route → redirect to login
+  if (isAdminRoute && !accessToken) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
 }
 
-// Tentukan rute mana yang kena middleware ini
 export const config = {
-    matcher: ['/', '/dashboard/:path*'],
+  matcher: [
+    /*
+     * Match all request paths EXCEPT for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico
+     * - public assets
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
+  ],
 };

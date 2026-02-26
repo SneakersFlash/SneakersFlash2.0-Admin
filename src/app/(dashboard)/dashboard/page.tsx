@@ -1,160 +1,247 @@
 'use client';
 
-import { 
-  DollarSign, 
-  Users, 
-  ShoppingCart, 
-  TrendingUp, 
-  Package,
-  ArrowUpRight,
-  MoreHorizontal
+import { useEffect, useState } from 'react';
+import {
+  ShoppingCart, DollarSign, Users, Package,
+  TrendingUp, Clock,
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import StatCard from '@/components/shared/StatCard';
+import PageHeader from '@/components/shared/PageHeader';
+import StatusBadge from '@/components/shared/StatusBadge';
+import { formatCurrency, formatDate, formatRelativeDate } from '@/lib/utils';
+import type { DashboardStats, RevenueChartData, Order } from '@/types';
 
-// Data Dummy untuk Grafik
-const data = [
-  { name: 'Jan', total: 1200 },
-  { name: 'Feb', total: 2100 },
-  { name: 'Mar', total: 1800 },
-  { name: 'Apr', total: 3200 },
-  { name: 'May', total: 2800 },
-  { name: 'Jun', total: 4500 },
+// ─── Mock data — replace with real API calls ──────────────────────────────────
+
+const MOCK_STATS: DashboardStats = {
+  totalRevenue: 84_500_000,
+  revenueToday: 3_200_000,
+  revenueGrowth: 12.4,
+  totalOrders: 1_842,
+  ordersToday: 23,
+  ordersGrowth: 8.2,
+  totalUsers: 654,
+  newUsersToday: 7,
+  lowStockCount: 12,
+  pendingOrdersCount: 38,
+};
+
+const MOCK_REVENUE: RevenueChartData[] = [
+  { date: '20 Feb', revenue: 2_100_000, orders: 15 },
+  { date: '21 Feb', revenue: 3_800_000, orders: 27 },
+  { date: '22 Feb', revenue: 2_900_000, orders: 20 },
+  { date: '23 Feb', revenue: 4_200_000, orders: 31 },
+  { date: '24 Feb', revenue: 3_500_000, orders: 24 },
+  { date: '25 Feb', revenue: 5_100_000, orders: 38 },
+  { date: '26 Feb', revenue: 3_200_000, orders: 23 },
 ];
 
-// Data Dummy untuk Recent Sales
-const recentSales = [
-  { name: 'Upiyyy', email: 'upiyyy@example.com', amount: 'Rp 2.500.000', status: 'Success' },
-  { name: 'Faizal', email: 'faizal@example.com', amount: 'Rp 1.200.000', status: 'Processing' },
-  { name: 'Budi Santoso', email: 'budi@example.com', amount: 'Rp 450.000', status: 'Success' },
-  { name: 'Siti Aminah', email: 'siti@example.com', amount: 'Rp 8.900.000', status: 'Failed' },
-  { name: 'Andi Wijaya', email: 'andi@example.com', amount: 'Rp 350.000', status: 'Success' },
+const MOCK_STATUS_DIST = [
+  { status: 'PENDING_PAYMENT', count: 38, label: 'Menunggu Bayar' },
+  { status: 'PROCESSING',      count: 24, label: 'Diproses' },
+  { status: 'SHIPPED',         count: 57, label: 'Dikirim' },
+  { status: 'DELIVERED',       count: 143, label: 'Terkirim' },
+  { status: 'CANCELLED',       count: 11, label: 'Dibatalkan' },
 ];
+
+const PIE_COLORS = ['#f59e0b', '#6366f1', '#f97316', '#22c55e', '#ef4444'];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const [stats] = useState<DashboardStats>(MOCK_STATS);
+  const [isLoading] = useState(false);
+
+  // TODO: replace with real API calls
+  // useEffect(() => {
+  //   OrderService.getStats().then(setStats);
+  // }, []);
+
   return (
-    <div className="space-y-6 pb-10">
-      {/* --- SECTION 1: STATS CARDS --- */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatsCard 
-          title="Total Revenue" 
-          value="Rp 45.231.000" 
-          desc="+20.1% from last month"
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description={`Selamat datang kembali! Berikut ringkasan hari ini.`}
+        icon={LayoutDashboard}
+      />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Revenue"
+          value={formatCurrency(stats.totalRevenue)}
+          subtitle={`${formatCurrency(stats.revenueToday)} hari ini`}
           icon={DollarSign}
+          iconColor="text-green-600"
+          iconBgColor="bg-green-100"
+          trend={stats.revenueGrowth}
+          isLoading={isLoading}
         />
-        <StatsCard 
-          title="Subscriptions" 
-          value="+2350" 
-          desc="+180.1% from last month"
-          icon={Users}
-        />
-        <StatsCard 
-          title="Sales" 
-          value="+12,234" 
-          desc="+19% from last month"
+        <StatCard
+          title="Total Pesanan"
+          value={stats.totalOrders.toLocaleString('id-ID')}
+          subtitle={`${stats.ordersToday} pesanan hari ini`}
           icon={ShoppingCart}
+          iconColor="text-blue-600"
+          iconBgColor="bg-blue-100"
+          trend={stats.ordersGrowth}
+          isLoading={isLoading}
         />
-        <StatsCard 
-          title="Active Now" 
-          value="+573" 
-          desc="+201 since last hour"
-          icon={TrendingUp}
+        <StatCard
+          title="Total Pengguna"
+          value={stats.totalUsers.toLocaleString('id-ID')}
+          subtitle={`+${stats.newUsersToday} pengguna baru`}
+          icon={Users}
+          iconColor="text-purple-600"
+          iconBgColor="bg-purple-100"
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Stok Menipis"
+          value={stats.lowStockCount}
+          subtitle="Produk perlu restok"
+          icon={Package}
+          iconColor="text-red-600"
+          iconBgColor="bg-red-100"
+          isLoading={isLoading}
         />
       </div>
 
-      {/* --- SECTION 2: CHARTS & RECENT SALES --- */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        
-        {/* GRAFIK (Mengambil 4 kolom) */}
-        <div className="col-span-4 rounded-xl border bg-white shadow-sm">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-slate-900">Overview</h3>
-            <p className="text-sm text-slate-500">Performa penjualan tahun 2026.</p>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {/* Revenue Chart */}
+        <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">
+                Revenue 7 Hari Terakhir
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Total pendapatan harian
+              </p>
+            </div>
+            <TrendingUp className="w-4 h-4 text-green-500" />
           </div>
-          <div className="pl-2 pr-6 pb-6 h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#888888" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                />
-                <YAxis 
-                  stroke="#888888" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(value) => `$${value}`} 
-                />
-                <Tooltip 
-                    cursor={{fill: '#f1f5f9'}}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                />
-                <Bar dataKey="total" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={MOCK_REVENUE}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}jt`}
+              />
+              <Tooltip
+                formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                contentStyle={{
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  fontSize: '12px',
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#111827"
+                strokeWidth={2}
+                dot={{ fill: '#111827', r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* RECENT SALES (Mengambil 3 kolom) */}
-        <div className="col-span-3 rounded-xl border bg-white shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100">
-            <h3 className="text-lg font-semibold text-slate-900">Recent Sales</h3>
-            <p className="text-sm text-slate-500">Kamu punya 265 penjualan bulan ini.</p>
+        {/* Order Status Distribution */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="mb-5">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Status Pesanan
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Distribusi status saat ini
+            </p>
           </div>
-          <div className="p-0">
-             {recentSales.map((item, i) => (
-               <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
-                  <div className="flex items-center gap-4">
-                    <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs">
-                        {item.name.substring(0,2).toUpperCase()}
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none text-slate-900">{item.name}</p>
-                        <p className="text-xs text-slate-500">{item.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <div className="font-bold text-sm">{item.amount}</div>
-                    <div className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                        item.status === 'Success' ? 'bg-green-100 text-green-700' :
-                        item.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                    }`}>
-                        {item.status}
-                    </div>
-                  </div>
-               </div>
-             ))}
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={MOCK_STATUS_DIST}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={75}
+                paddingAngle={3}
+                dataKey="count"
+              >
+                {MOCK_STATUS_DIST.map((_, index) => (
+                  <Cell
+                    key={index}
+                    fill={PIE_COLORS[index % PIE_COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number, _: unknown, props: { payload?: { label: string } }) => [
+                  value,
+                  props.payload?.label ?? '',
+                ]}
+                contentStyle={{
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  fontSize: '12px',
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="space-y-1.5 mt-2">
+            {MOCK_STATUS_DIST.map((item, i) => (
+              <div key={item.status} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: PIE_COLORS[i] }}
+                  />
+                  <span className="text-gray-600">{item.label}</span>
+                </div>
+                <span className="font-medium text-gray-900">{item.count}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Pending Orders Alert */}
+      {stats.pendingOrdersCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+          <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">
+              {stats.pendingOrdersCount} pesanan menunggu tindakan
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              Segera proses pesanan yang sudah dibayar untuk menjaga pengalaman pelanggan.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Komponen Kecil untuk Kartu Statistik agar kode lebih rapi
-function StatsCard({ title, value, desc, icon: Icon }: any) {
-    return (
-        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <h3 className="tracking-tight text-sm font-medium text-slate-500">{title}</h3>
-                <Icon className="h-4 w-4 text-slate-400" />
-            </div>
-            <div>
-                <div className="text-2xl font-bold text-slate-900">{value}</div>
-                <p className="text-xs text-slate-500 mt-1">{desc}</p>
-            </div>
-        </div>
-    );
+// Needed for PageHeader icon
+function LayoutDashboard(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" />
+    </svg>
+  );
 }
