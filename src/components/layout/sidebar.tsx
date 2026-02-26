@@ -11,13 +11,15 @@ import {
   Settings, 
   LogOut, 
   Layers,
-  ChevronRight
+  ChevronRight,
+  Logs
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deleteCookie } from 'cookies-next';
 
 const menuItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { title: 'Ginee Logs', href: '/dashboard/ginee-logs', icon: Logs },
   { title: 'Products', href: '/dashboard/products', icon: Package },
   { title: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
   { title: 'Customers', href: '/dashboard/customers', icon: Users },

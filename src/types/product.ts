@@ -1,10 +1,22 @@
+export interface Variant {
+    id: string;
+    sku: string;
+    price: number;
+    stock: number; // Perhatikan: di API namanya "stock", bukan "stockQuantity"
+    imageUrl: string | null;
+}
+
 export interface Product {
     id: number;
     name: string;
-    price: number;
-    stock: number;
-    category: string;
-    image_url: string; // sesuaikan dengan response backend kamu (misal: 'image' atau 'thumbnail')
-    status: 'active' | 'draft' | 'archived';
-    created_at: string;
+    slug: string;
+    basePrice: number;
+    isActive: boolean;
+    category?: { name: string };
+    brand?: { name: string };
+    variants: Variant[];
+    
+    // Field baru dari API
+    availableSizes: string[]; 
+    totalStock: number;
 }
