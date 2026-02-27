@@ -8,7 +8,6 @@ export * from './order.types';
 
 export type VoucherType = 'FIXED' | 'PERCENT';
 export type VoucherStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | 'EXHAUSTED';
-
 export interface Voucher {
   id: string;
   code: string;
@@ -213,4 +212,32 @@ export interface NotificationLog {
   error?: string;
   sentAt: string;
   createdAt: string;
+}
+
+
+export interface DashboardStats {
+  totalRevenue: number;
+  revenueToday: number;
+  revenueGrowth: number;
+  totalOrders: number;
+  ordersToday: number;
+  ordersGrowth: number;
+  totalUsers: number;
+  newUsersToday: number;
+  lowStockCount: number;
+  pendingOrdersCount: number;
+}
+
+// ─── Chart Data ───────────────────────────────────────────────────────────────
+
+export interface RevenueChartData {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface OrderStatusDist {
+  status: string;
+  count: number;
+  label: string;
 }

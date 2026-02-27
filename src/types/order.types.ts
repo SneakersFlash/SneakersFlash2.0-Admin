@@ -1,130 +1,115 @@
-// ─── Order Status Lifecycle ───────────────────────────────────────────────────
+// ─── Enums ────────────────────────────────────────────────────────────────────
 
 export type OrderStatus =
   | 'PENDING_PAYMENT'
   | 'PAID'
   | 'PROCESSING'
-  | 'PACKED'
   | 'SHIPPED'
   | 'DELIVERED'
   | 'CANCELLED'
   | 'REFUNDED';
 
-export type PaymentStatus =
-  | 'PENDING'
-  | 'SETTLEMENT'
-  | 'EXPIRE'
-  | 'CANCEL'
-  | 'DENY'
-  | 'REFUND';
+export type PaymentMethod = 'bank_transfer' | 'gopay' | 'qris' | 'credit_card' | 'cod';
 
-export type PaymentMethod =
-  | 'BANK_TRANSFER'
-  | 'CREDIT_CARD'
-  | 'GOPAY'
-  | 'SHOPEEPAY'
-  | 'QRIS'
-  | 'INDOMARET'
-  | 'ALFAMART';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded';
 
-// ─── Order Item (snapshot at time of order) ──────────────────────────────────
+// ─── Sub-entities ─────────────────────────────────────────────────────────────
 
-export interface OrderItem {
-  id: string;
-  orderId: string;
-  productId: string;
-  variantId: string;
-  productName: string;   // snapshot
-  productImage: string;  // snapshot
-  size: string;          // snapshot
-  color?: string;        // snapshot
-  sku?: string;          // snapshot
-  quantity: number;
-  unitPrice: number;     // price at time of order
-  subtotal: number;
-}
-
-// ─── Shipping Address (snapshot) ─────────────────────────────────────────────
-
-export interface ShippingAddress {
+export interface OrderAddress {
   recipientName: string;
   phone: string;
-  address: string;
+  street: string;
+  subdistrict: string;
   city: string;
   province: string;
   postalCode: string;
   notes?: string;
 }
 
-// ─── Order ────────────────────────────────────────────────────────────────────
+export interface CourierInfo {
+  name: string;       // e.g. "JNE"
+  service: string;    // e.g. "REG"
+  trackingNumber?: string;
+  estimatedDays?: number;
+  cost: number;
+}
+
+export interface OrderItem {
+  id: string;
+  productName: string;
+  variantSku: string;
+  size: string;
+  color?: string;
+  imageUrl?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface OrderUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+}
+
+// ─── Main Order entity ────────────────────────────────────────────────────────
 
 export interface Order {
   id: string;
   orderNumber: string;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-  };
-  items: OrderItem[];
-  shippingAddress: ShippingAddress;
-  shippingCost: number;
-  shippingCourier: string;
-  shippingService: string;
-  awbNumber?: string;
-  subtotal: number;
-  discountAmount: number;
-  voucherCode?: string;
-  total: number;
   status: OrderStatus;
+  paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
-  paymentMethod?: PaymentMethod;
-  midtransOrderId?: string;
-  midtransTransactionId?: string;
+  snapToken?: string;
+
+  subtotal: number;
+  shippingCost: number;
+  discountAmount: number;
+  total: number;
+
+  voucherCode?: string;
   notes?: string;
+
+  user: OrderUser;
+  address: OrderAddress;
+  courier: CourierInfo;
+  items: OrderItem[];
+
   createdAt: string;
   updatedAt: string;
+  paidAt?: string;
 }
 
-export interface OrderFilters {
+// ─── API Payloads ─────────────────────────────────────────────────────────────
+
+export interface UpdateOrderStatusPayload {
+  status: OrderStatus;
+  trackingNumber?: string;
+  notes?: string;
+}
+
+// ─── Query Params ─────────────────────────────────────────────────────────────
+
+export interface OrderQueryParams {
+  page?: number;
+  limit?: number;
   search?: string;
-  status?: OrderStatus;
-  paymentStatus?: PaymentStatus;
+  status?: OrderStatus | '';
+  paymentMethod?: PaymentMethod | '';
   startDate?: string;
   endDate?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
-export interface UpdateOrderStatusDto {
-  status: OrderStatus;
-  notes?: string;
-  awbNumber?: string;
-}
+// ─── Meta ─────────────────────────────────────────────────────────────────────
 
-// ─── Dashboard Stats ──────────────────────────────────────────────────────────
-
-export interface DashboardStats {
-  totalRevenue: number;
-  revenueToday: number;
-  revenueGrowth: number; // percentage vs last period
-  totalOrders: number;
-  ordersToday: number;
-  ordersGrowth: number;
-  totalUsers: number;
-  newUsersToday: number;
-  lowStockCount: number;
-  pendingOrdersCount: number;
-}
-
-export interface RevenueChartData {
-  date: string;
-  revenue: number;
-  orders: number;
-}
-
-export interface OrderStatusDistribution {
-  status: OrderStatus;
-  count: number;
-  percentage: number;
+export interface OrderMeta {
+  total: number;
+  page: number;
+  limit: number;
+  lastPage: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
 }

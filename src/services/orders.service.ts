@@ -1,45 +1,49 @@
-/**
- * src/services/orders.service.ts
- */
 import api from '@/lib/api';
 import type {
   Order,
-  OrderFilters,
-  UpdateOrderStatusDto,
-  DashboardStats,
-  RevenueChartData,
+  OrderMeta,
+  OrderQueryParams,
+  UpdateOrderStatusPayload,
 } from '@/types/order.types';
-import type { PaginatedResponse, PaginationParams } from '@/types/api.types';
 
-const OrderService = {
-  async getAll(
-    params?: PaginationParams & OrderFilters,
-  ): Promise<PaginatedResponse<Order>> {
-    const { data } = await api.get<PaginatedResponse<Order>>('/orders/admin', { params });
+export interface OrdersResponse {
+  data: Order[];
+  meta: OrderMeta;
+}
+
+const OrdersService = {
+  /**
+   * Fetch paginated list of all orders (Admin).
+   */
+  async getOrders(params: OrderQueryParams): Promise<OrdersResponse> {
+    const { data } = await api.get<OrdersResponse>('/orders/admin');
+    // const { data } = await api.get<OrdersResponse>('/orders', { params });
     return data;
   },
 
-  async getById(id: string): Promise<Order> {
-    const { data } = await api.get<Order>(`/orders/${id}`);
+  /**
+   * Fetch a single order by ID (Admin).
+   */
+  async getOrder(id: string): Promise<Order> {
+    const { data } = await api.get<Order>(`/orders/admin/${id}`);
     return data;
   },
 
-  async updateStatus(id: string, dto: UpdateOrderStatusDto): Promise<Order> {
-    const { data } = await api.patch<Order>(`/orders/${id}/status`, dto);
+  /**
+   * Update order status — e.g. mark as PROCESSING, SHIPPED, etc.
+   */
+  async updateStatus(id: string, payload: UpdateOrderStatusPayload): Promise<Order> {
+    const { data } = await api.patch<Order>(`/orders/admin/${id}/status`, payload);
     return data;
   },
 
-  async getStats(): Promise<DashboardStats> {
-    const { data } = await api.get<DashboardStats>('/orders/admin/stats');
-    return data;
-  },
-
-  async getRevenueChart(days = 7): Promise<RevenueChartData[]> {
-    const { data } = await api.get<RevenueChartData[]>('/orders/admin/revenue-chart', {
-      params: { days },
-    });
+  /**
+   * Cancel an order (Admin override).
+   */
+  async cancelOrder(id: string, reason?: string): Promise<Order> {
+    const { data } = await api.patch<Order>(`/orders/admin/${id}/cancel`, { reason });
     return data;
   },
 };
 
-export default OrderService;
+export default OrdersService;
