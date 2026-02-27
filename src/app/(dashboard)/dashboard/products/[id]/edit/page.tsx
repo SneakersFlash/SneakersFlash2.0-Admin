@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation"; // PENTING: Gunakan ini untuk App R
 import ProductForm from "@/components/module/product/ProductForm";
 import { ProductFormValues } from "@/lib/validators/product";
 import { toast } from "sonner";
-import api from "@/lib/axios"; // Gunakan instance axios yang sudah dibuat
+import api from "@/lib/api"; // Gunakan instance axios yang sudah dibuat
+import CategoriesService from "@/services/categories.service";
+import BrandsService from "@/services/brands.service";
+import { Brand, Category } from "@/types/master.types";
 
 interface EditPageProps {
   params: Promise<{ id: string }>;
@@ -21,6 +24,13 @@ export default function EditProductPage({ params }: EditPageProps) {
   const [productData, setProductData] = useState<ProductFormValues | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+
+  useEffect(() => {
+    CategoriesService.getAll().then(setCategories);
+    BrandsService.getAll().then(setBrands);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -99,8 +109,10 @@ export default function EditProductPage({ params }: EditPageProps) {
       
       {productData ? (
         <ProductForm 
-            initialData={productData} 
-            onSubmit={handleUpdate} 
+          initialData={productData} 
+          onSubmit={handleUpdate} 
+          categories={categories} 
+          brands={brands}
         />
       ) : (
         <div className="text-center text-red-500">

@@ -5,7 +5,7 @@ import { Menu, Search, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { NAV_ITEMS } from '@/lib/constants';
+import { NAV_GROUPS } from '@/lib/constants'; // 1. Ubah import ke NAV_GROUPS
 import { cn } from '@/lib/utils';
 
 // ─── Breadcrumb builder ───────────────────────────────────────────────────────
@@ -13,7 +13,11 @@ import { cn } from '@/lib/utils';
 function getBreadcrumbs(pathname: string) {
   const crumbs = [{ label: 'Dashboard', href: '/dashboard' }];
 
-  const matched = NAV_ITEMS.find(
+  // 2. Gabungkan semua item dari dalam grup menjadi satu array datar (flat)
+  const allNavItems = NAV_GROUPS.flatMap(group => group.items);
+
+  // 3. Cari kecocokan URL
+  const matched = allNavItems.find(
     (item) =>
       item.href !== '/dashboard' && pathname.startsWith(item.href),
   );
@@ -21,12 +25,12 @@ function getBreadcrumbs(pathname: string) {
   if (matched) {
     crumbs.push({ label: matched.title, href: matched.href });
 
-    // Sub-page (e.g. /dashboard/products/new or /dashboard/products/[id])
+    // Sub-page (e.g. /dashboard/products/create or /dashboard/products/[id])
     const segments = pathname.replace(matched.href, '').split('/').filter(Boolean);
     if (segments.length > 0) {
       const sub = segments[0];
       const subLabel =
-        sub === 'new'
+        sub === 'new' || sub === 'create'
           ? 'Tambah Baru'
           : sub.length > 20
           ? `Detail`
@@ -46,28 +50,26 @@ interface HeaderProps {
   notificationCount?: number;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function Header({ onMenuToggle, notificationCount = 0 }: HeaderProps) {
   const pathname = usePathname();
   const breadcrumbs = getBreadcrumbs(pathname);
   const currentPage = breadcrumbs[breadcrumbs.length - 1];
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-gray-200 px-4 lg:px-6 h-14 flex items-center gap-4">
-      {/* Mobile menu toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden text-gray-600 hover:text-gray-900"
-        onClick={onMenuToggle}
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
+    <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
+      <div className="flex items-center gap-4">
+        {/* Hamburger menu for mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden text-gray-600 hover:text-gray-900"
+          onClick={onMenuToggle}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
 
-      {/* Page title / Breadcrumbs */}
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <nav className="hidden md:flex items-center gap-2 text-sm text-gray-500">
+        {/* Breadcrumbs — visible on desktop */}
+        <nav className="hidden md:flex items-center gap-2 text-sm">
           {breadcrumbs.map((crumb, i) => (
             <span key={crumb.href} className="flex items-center gap-2">
               {i > 0 && <span className="text-gray-300">/</span>}
@@ -108,8 +110,8 @@ export default function Header({ onMenuToggle, notificationCount = 0 }: HeaderPr
         >
           <Bell className="w-4 h-4" />
           {notificationCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] bg-red-500 text-white border-2 border-white">
-              {notificationCount > 9 ? '9+' : notificationCount}
+            <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] border-2 border-white">
+              {notificationCount > 99 ? '99+' : notificationCount}
             </Badge>
           )}
         </Button>

@@ -6,16 +6,42 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2, Plus, Save, X, ImagePlus, Link as LinkIcon } from "lucide-react"; 
 import { productSchema, type ProductFormValues } from "@/lib/validators/product";
 
+// Import komponen Select dari Shadcn UI
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Tambahkan type agar form tahu bentuk data kategori & merek
+// Sesuaikan import path ini jika kamu menaruh type-nya di tempat lain
+interface CategoryOption {
+  id: number | string;
+  name: string;
+}
+
+interface BrandOption {
+  id: number | string;
+  name: string;
+}
+
 interface ProductFormProps {
   initialData?: ProductFormValues;
   onSubmit: (data: ProductFormValues) => void;
   isLoading?: boolean;
+  // Tambahkan props untuk menerima data dari halaman parent
+  categories?: CategoryOption[];
+  brands?: BrandOption[];
 }
 
 export default function ProductForm({
   initialData,
   onSubmit,
   isLoading = false,
+  categories = [],
+  brands = [],
 }: ProductFormProps) {
   const {
     register,
@@ -29,10 +55,9 @@ export default function ProductForm({
       description: "",
       basePrice: 0,
       weightGrams: 100,
-      categoryId: 0,
-      brandId: 0,
+      categoryId: undefined, // Sebaiknya undefined agar placeholder muncul
+      brandId: undefined,
       variants: [
-        // Default now includes empty imageUrl array
         { sku: "", price: 0, stockQuantity: 0, imageUrl: [] },
       ],
     },
@@ -42,8 +67,6 @@ export default function ProductForm({
     control,
     name: "variants",
   });
-
-  console.log(errors);
   
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto p-6 bg-white shadow-sm border border-gray-100 rounded-xl">
@@ -63,25 +86,63 @@ export default function ProductForm({
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-black focus:border-transparent transition"
               placeholder="Contoh: Nike Air Jordan 1 High"
             />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message as string}</p>}
           </div>
 
+          {/* ─── PERUBAHAN: Input Kategori Diganti Select ─── */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Kategori ID</label>
-            <input
-              type="number"
-              {...register("categoryId", { valueAsNumber: true })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Kategori</label>
+            <Controller
+              control={control}
+              name="categoryId"
+              render={({ field }) => (
+                <Select
+                  onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                  value={field.value ? String(field.value) : undefined}
+                >
+                  <SelectTrigger className="w-full border-gray-300 rounded-lg">
+                    <SelectValue placeholder="Pilih Kategori Produk" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.length === 0 && (
+                       <SelectItem value="empty" disabled>Belum ada kategori</SelectItem>
+                    )}
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
-            {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId.message}</p>}
+            {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId.message as string}</p>}
           </div>
 
+          {/* ─── PERUBAHAN: Input Brand Diganti Select ─── */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Brand ID (Opsional)</label>
-            <input
-              type="number"
-              {...register("brandId", { valueAsNumber: true })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Merek (Opsional)</label>
+            <Controller
+              control={control}
+              name="brandId"
+              render={({ field }) => (
+                <Select
+                  onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value, 10))}
+                  value={field.value ? String(field.value) : "none"}
+                >
+                  <SelectTrigger className="w-full border-gray-300 rounded-lg">
+                    <SelectValue placeholder="Pilih Merek..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- Tanpa Merek --</SelectItem>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={String(brand.id)}>
+                        {brand.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
           </div>
 
@@ -92,6 +153,7 @@ export default function ProductForm({
               {...register("basePrice", { valueAsNumber: true })}
               className="w-full border border-gray-300 rounded-lg px-4 py-2"
             />
+            {errors.basePrice && <p className="text-red-500 text-xs mt-1">{errors.basePrice.message as string}</p>}
           </div>
 
           <div>
@@ -101,6 +163,7 @@ export default function ProductForm({
               {...register("weightGrams", { valueAsNumber: true })}
               className="w-full border border-gray-300 rounded-lg px-4 py-2"
             />
+            {errors.weightGrams && <p className="text-red-500 text-xs mt-1">{errors.weightGrams.message as string}</p>}
           </div>
 
           <div className="col-span-2">
@@ -110,6 +173,7 @@ export default function ProductForm({
               className="w-full border border-gray-300 rounded-lg px-4 py-2 h-32 resize-none"
               placeholder="Jelaskan fitur utama produk..."
             />
+            {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message as string}</p>}
           </div>
         </div>
       </div>
@@ -130,18 +194,16 @@ export default function ProductForm({
           </button>
         </div>
 
-        {errors.variants && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-md">{errors.variants.message}</p>}
+        {errors.variants?.root && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-md">{errors.variants.root.message as string}</p>}
 
         <div className="space-y-6">
           {fields.map((field, index) => (
             <div key={field.id} className="border border-gray-200 p-6 rounded-xl bg-gray-50/50 relative group transition hover:border-gray-300 hover:shadow-sm">
               
-              {/* Variant Header Badge */}
               <div className="absolute -top-3 -left-3 bg-white border border-gray-200 text-gray-800 text-xs font-bold w-8 h-8 flex items-center justify-center rounded-full shadow-sm z-10">
                 {index + 1}
               </div>
 
-              {/* Remove Variant Button */}
               <div className="absolute top-4 right-4">
                 <button
                   type="button"
@@ -155,23 +217,22 @@ export default function ProductForm({
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                 
-                {/* Inputs Basic */}
                 <div className="md:col-span-4 space-y-4">
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU</label>
                         <input
-                            {...register(`variants.${index}.sku`)}
+                            {...register(`variants.${index}.sku` as const)}
                             placeholder="Contoh: NIKE-AIR-001"
                             className="w-full mt-1 border border-gray-300 rounded-md p-2 text-sm font-mono"
                         />
-                         {errors.variants?.[index]?.sku && <p className="text-red-500 text-xs mt-1">{errors.variants[index]?.sku?.message}</p>}
+                         {errors.variants?.[index]?.sku && <p className="text-red-500 text-xs mt-1">{errors.variants[index]?.sku?.message as string}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Harga</label>
                             <input
                                 type="number"
-                                {...register(`variants.${index}.price`, { valueAsNumber: true })}
+                                {...register(`variants.${index}.price` as const, { valueAsNumber: true })}
                                 className="w-full mt-1 border border-gray-300 rounded-md p-2 text-sm"
                             />
                         </div>
@@ -179,21 +240,19 @@ export default function ProductForm({
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Stok</label>
                             <input
                                 type="number"
-                                {...register(`variants.${index}.stockQuantity`, { valueAsNumber: true })}
+                                {...register(`variants.${index}.stockQuantity` as const, { valueAsNumber: true })}
                                 className="w-full mt-1 border border-gray-300 rounded-md p-2 text-sm"
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Image Manager Area */}
                 <div className="md:col-span-8 bg-white p-4 rounded-lg border border-gray-200">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 block">Galeri Foto Varian</label>
                     
-                    {/* Controller for Image Array */}
                     <Controller
                         control={control}
-                        name={`variants.${index}.imageUrl`}
+                        name={`variants.${index}.imageUrl` as const}
                         render={({ field: { value = [], onChange } }) => (
                             <ImageArrayManager 
                                 urls={value} 
@@ -208,7 +267,6 @@ export default function ProductForm({
         </div>
       </div>
 
-      {/* Footer Action */}
       <div className="pt-6 border-t border-gray-100 sticky bottom-0 bg-white/80 backdrop-blur-sm p-4 -mx-6 -mb-6 rounded-b-xl z-20">
         <button
           type="submit"
@@ -232,14 +290,13 @@ function ImageArrayManager({ urls, onChange }: { urls: string[], onChange: (urls
 
     const handleAdd = () => {
         if (!inputVal.trim()) return;
-        // Basic URL validation could go here
         onChange([...urls, inputVal.trim()]);
         setInputVal("");
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
-            e.preventDefault(); // Prevent form submit
+            e.preventDefault(); 
             handleAdd();
         }
     };
@@ -250,7 +307,6 @@ function ImageArrayManager({ urls, onChange }: { urls: string[], onChange: (urls
 
     return (
         <div className="space-y-4">
-            {/* Input Area */}
             <div className="flex gap-2">
                 <div className="relative flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -275,11 +331,11 @@ function ImageArrayManager({ urls, onChange }: { urls: string[], onChange: (urls
                 </button>
             </div>
 
-            {/* Preview Grid */}
             {urls.length > 0 ? (
                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
                     {urls.map((url, i) => (
                         <div key={i} className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img 
                                 src={url} 
                                 alt={`Variant img ${i}`} 
@@ -288,7 +344,6 @@ function ImageArrayManager({ urls, onChange }: { urls: string[], onChange: (urls
                                     (e.target as HTMLImageElement).src = "https://placehold.co/100?text=Error";
                                 }}
                             />
-                            {/* Overlay Remove Button */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <button
                                     type="button"
@@ -298,7 +353,6 @@ function ImageArrayManager({ urls, onChange }: { urls: string[], onChange: (urls
                                     <X size={14} />
                                 </button>
                             </div>
-                            {/* Primary Badge */}
                             {i === 0 && (
                                 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-bold text-center py-0.5">
                                     UTAMA

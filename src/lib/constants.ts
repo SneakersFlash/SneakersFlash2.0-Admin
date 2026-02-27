@@ -8,54 +8,13 @@ export const ORDER_STATUS_CONFIG: Record<
   OrderStatus,
   { label: string; color: string; bgColor: string; icon: string }
 > = {
-  PENDING_PAYMENT: {
-    label: 'Menunggu Pembayaran',
-    color: 'text-yellow-700',
-    bgColor: 'bg-yellow-100',
-    icon: 'clock',
-  },
-  PAID: {
-    label: 'Sudah Dibayar',
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-100',
-    icon: 'check-circle',
-  },
-  PROCESSING: {
-    label: 'Diproses',
-    color: 'text-indigo-700',
-    bgColor: 'bg-indigo-100',
-    icon: 'loader',
-  },
-  PACKED: {
-    label: 'Dikemas',
-    color: 'text-purple-700',
-    bgColor: 'bg-purple-100',
-    icon: 'package',
-  },
-  SHIPPED: {
-    label: 'Dikirim',
-    color: 'text-orange-700',
-    bgColor: 'bg-orange-100',
-    icon: 'truck',
-  },
-  DELIVERED: {
-    label: 'Terkirim',
-    color: 'text-green-700',
-    bgColor: 'bg-green-100',
-    icon: 'check-circle-2',
-  },
-  CANCELLED: {
-    label: 'Dibatalkan',
-    color: 'text-red-700',
-    bgColor: 'bg-red-100',
-    icon: 'x-circle',
-  },
-  REFUNDED: {
-    label: 'Dikembalikan',
-    color: 'text-gray-700',
-    bgColor: 'bg-gray-100',
-    icon: 'rotate-ccw',
-  },
+  PENDING_PAYMENT: { label: 'Menunggu Pembayaran', color: 'text-yellow-700', bgColor: 'bg-yellow-100', icon: 'clock' },
+  PAID: { label: 'Sudah Dibayar', color: 'text-blue-700', bgColor: 'bg-blue-100', icon: 'check-circle' },
+  PROCESSING: { label: 'Diproses', color: 'text-indigo-700', bgColor: 'bg-indigo-100', icon: 'loader' },
+  PACKED: { label: 'Dikemas', color: 'text-purple-700', bgColor: 'bg-purple-100', icon: 'package' },
+  SHIPPED: { label: 'Dikirim', color: 'text-orange-700', bgColor: 'bg-orange-100', icon: 'truck' },
+  DELIVERED: { label: 'Terkirim', color: 'text-green-700', bgColor: 'bg-green-100', icon: 'check-circle' },
+  CANCELLED: { label: 'Dibatalkan', color: 'text-red-700', bgColor: 'bg-red-100', icon: 'x-circle' },
 };
 
 // ─── Payment Status Config ────────────────────────────────────────────────────
@@ -116,18 +75,51 @@ export interface NavItem {
   badge?: 'pendingOrders';
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { title: 'Dashboard',   href: '/dashboard',              icon: 'layout-dashboard' },
-  { title: 'Produk',      href: '/dashboard/products',     icon: 'package'          },
-  { title: 'Kategori',    href: '/dashboard/categories',   icon: 'tag'              },
-  { title: 'Pesanan',     href: '/dashboard/orders',       icon: 'shopping-cart', badge: 'pendingOrders' },
-  { title: 'Pembayaran',  href: '/dashboard/payments',     icon: 'credit-card'      },
-  { title: 'Logistik',    href: '/dashboard/logistics',    icon: 'truck'            },
-  { title: 'Voucher',     href: '/dashboard/vouchers',     icon: 'ticket'           },
-  { title: 'Inventori',   href: '/dashboard/inventory',    icon: 'warehouse'        },
-  { title: 'Kampanye',    href: '/dashboard/campaigns',    icon: 'megaphone'        },
-  { title: 'Notifikasi',  href: '/dashboard/notifications',icon: 'bell'             },
-  { title: 'Pengguna',    href: '/dashboard/users',        icon: 'users'            },
+export interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'Menu Utama',
+    items: [
+      { title: 'Dashboard', href: '/dashboard', icon: 'layout-dashboard' },
+    ]
+  },
+  {
+    title: 'Manajemen Katalog',
+    items: [
+      { title: 'Produk', href: '/dashboard/products', icon: 'package' },
+      { title: 'Kategori', href: '/dashboard/categories', icon: 'tag' },
+      { title: 'Merek (Brand)', href: '/dashboard/brands', icon: 'handshake' },
+    ]
+  },
+  {
+    title: 'Transaksi & Penjualan',
+    items: [
+      { title: 'Pesanan', href: '/dashboard/orders', icon: 'shopping-cart', badge: 'pendingOrders' },
+      { title: 'Pembayaran', href: '/dashboard/payments', icon: 'credit-card' },
+      { title: 'Logistik', href: '/dashboard/logistics', icon: 'truck' },
+    ]
+  },
+  {
+    title: 'Marketing & Promosi',
+    items: [
+      { title: 'Banner Promo', href: '/dashboard/banners', icon: 'image-icon' },
+      { title: 'Kampanye (Events)', href: '/dashboard/campaigns', icon: 'megaphone' },
+      { title: 'Voucher', href: '/dashboard/vouchers', icon: 'ticket' },
+    ]
+  },
+  {
+    title: 'Sistem & Operasional',
+    items: [
+      { title: 'Pengguna', href: '/dashboard/users', icon: 'users' },
+      { title: 'Inventori', href: '/dashboard/inventory', icon: 'warehouse' },
+      { title: 'Ginee Logs', href: '/dashboard/ginee-logs', icon: 'logs' },
+      { title: 'Notifikasi', href: '/dashboard/notifications', icon: 'bell' },
+    ]
+  }
 ];
 
 // ─── Thresholds & Defaults ───────────────────────────────────────────────────
