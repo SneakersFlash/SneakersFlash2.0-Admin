@@ -25,7 +25,7 @@ const OrdersService = {
    * Fetch a single order by ID (Admin).
    */
   async getOrder(id: string): Promise<Order> {
-    const { data } = await api.get<Order>(`/orders/admin/${id}`);
+    const { data } = await api.get<Order>(`/orders/${id}`);
     return data;
   },
 
@@ -33,7 +33,7 @@ const OrdersService = {
    * Update order status — e.g. mark as PROCESSING, SHIPPED, etc.
    */
   async updateStatus(id: string, payload: UpdateOrderStatusPayload): Promise<Order> {
-    const { data } = await api.patch<Order>(`/orders/admin/${id}/status`, payload);
+    const { data } = await api.patch<Order>(`/orders/${id}/status`, payload);
     return data;
   },
 
@@ -41,7 +41,7 @@ const OrdersService = {
    * Cancel an order (Admin override).
    */
   async cancelOrder(id: string, reason?: string): Promise<Order> {
-    const { data } = await api.patch<Order>(`/orders/admin/${id}/cancel`, { reason });
+    const { data } = await api.patch<Order>(`/orders/${id}/cancel`, { reason });
     return data;
   },
 };

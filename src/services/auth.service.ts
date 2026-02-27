@@ -13,7 +13,7 @@ const AuthService = {
       throw new Error('Access denied. Admin privileges required.');
     }
 
-    tokenStore.setTokens(data.accessToken, data.refreshToken);
+    tokenStore.setTokens(data.access_token, data.refreshToken);
     return data;
   },
 

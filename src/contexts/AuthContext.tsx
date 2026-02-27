@@ -79,6 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = user !== null;
   const isAdmin = user?.role === 'admin';
 
+  if (isLoading) {
+    return null; // Atau ganti dengan komponen <LoadingScreen /> jika kamu punya
+  }
+  
   return (
     <AuthContext.Provider
       value={{ user, isLoading, isAuthenticated, isAdmin, login, logout }}
@@ -89,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
+
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);

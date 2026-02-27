@@ -1,13 +1,3 @@
-/**
- * src/lib/api.ts
- *
- * Central Axios instance with:
- *  - Base URL from env
- *  - JWT Authorization header injection
- *  - Automatic token refresh on 401
- *  - Typed error handling
- */
-
 import axios, {
   AxiosError,
   AxiosInstance,
@@ -27,15 +17,16 @@ export const tokenStore = {
   getAccess: () => Cookies.get(ACCESS_TOKEN_KEY) ?? null,
   getRefresh: () => Cookies.get(REFRESH_TOKEN_KEY) ?? null,
   setTokens: (access: string, refresh: string) => {
-    // Secure: sameSite + 7 day expiry
     Cookies.set(ACCESS_TOKEN_KEY, access, {
       expires: 1,
-      sameSite: 'strict',
+      path: '/', // <--- TAMBAHKAN INI
+      sameSite: 'lax', // <--- UBAH ke lax (strict kadang bermasalah di localhost)
       secure: process.env.NODE_ENV === 'production',
     });
     Cookies.set(REFRESH_TOKEN_KEY, refresh, {
       expires: 7,
-      sameSite: 'strict',
+      path: '/', // <--- TAMBAHKAN INI
+      sameSite: 'lax', 
       secure: process.env.NODE_ENV === 'production',
     });
   },
@@ -59,7 +50,8 @@ api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = tokenStore.getAccess();
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // PERBAIKAN: Menggunakan method .set() untuk AxiosHeaders
+      config.headers.set('Authorization', `Bearer ${token}`);
     }
     return config;
   },
@@ -90,12 +82,12 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // If already refreshing, queue this request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        // PERBAIKAN: Menggunakan method .set() untuk AxiosHeaders
+        originalRequest.headers.set('Authorization', `Bearer ${token}`);
         return api(originalRequest);
       });
     }
@@ -106,7 +98,9 @@ api.interceptors.response.use(
     const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) {
       tokenStore.clear();
-      window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
       return Promise.reject(error);
     }
 
@@ -117,15 +111,20 @@ api.interceptors.response.use(
 
       const { accessToken, refreshToken: newRefresh } = data;
       tokenStore.setTokens(accessToken, newRefresh);
-      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      
+      // Update default headers untuk request selanjutnya
+      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       processQueue(null, accessToken);
 
-      originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      // PERBAIKAN: Menggunakan method .set() untuk AxiosHeaders
+      originalRequest.headers.set('Authorization', `Bearer ${accessToken}`);
       return api(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError as AxiosError, null);
       tokenStore.clear();
-      window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
