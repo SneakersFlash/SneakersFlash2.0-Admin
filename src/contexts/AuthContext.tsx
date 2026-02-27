@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const me = await AuthService.getMe();
         // Only allow ADMIN role into the admin panel
-        if (me.role !== 'ADMIN') {
+        if (me.role !== 'admin') {
           AuthService.logout();
           setUser(null);
         } else {
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Derived state ──────────────────────────────────────────────────────────
 
   const isAuthenticated = user !== null;
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'admin';
 
   return (
     <AuthContext.Provider

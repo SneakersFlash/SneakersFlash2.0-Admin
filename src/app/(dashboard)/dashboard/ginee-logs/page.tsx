@@ -6,7 +6,7 @@ import {
   Clock, ArrowUpDown, ChevronLeft, ChevronRight, XCircle, FileJson 
 } from 'lucide-react';
 import { toast } from 'sonner';
-import api from '@/lib/axios'; // Pastikan path ini benar
+import api from '@/lib/api'; // Pastikan path ini benar
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';

@@ -12,7 +12,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 const PUBLIC_ROUTES  = ['/login'];
 const ADMIN_ROUTES   = ['/dashboard'];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get('sf_access_token')?.value ?? null;
 

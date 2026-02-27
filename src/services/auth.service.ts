@@ -9,7 +9,7 @@ const AuthService = {
     const { data } = await api.post<LoginResponse>('/auth/login', credentials);
 
     // Validate the user has ADMIN role
-    if (data.user.role !== 'ADMIN') {
+    if (data.user.role !== 'admin') {
       throw new Error('Access denied. Admin privileges required.');
     }
 

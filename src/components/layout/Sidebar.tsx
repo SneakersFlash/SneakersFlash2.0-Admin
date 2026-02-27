@@ -6,6 +6,8 @@ import {
   LayoutDashboard, Package, Tag, ShoppingCart, CreditCard,
   Truck, Ticket, Warehouse, Megaphone, Bell, Users, LogOut,
   ChevronRight, X,
+  Icon,
+  LogsIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -147,7 +149,28 @@ export default function Sidebar({
               </Link>
             );
           })}
+          <Separator className="bg-gray-800 mb-2" />
+          <div className="flex items-center justify-between p-5 border-b border-gray-800">
+            <p className="text-xs text-gray-400">Admin Panel</p>
+          </div>
+          <Link
+            key={'dashboard/ginee-logs'}
+            href={'dashboard/ginee-logs'}
+            onClick={onClose}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium',
+              'transition-all duration-150 group bg-white text-gray-900'
+            )}
+          >
+              <LogsIcon
+                className={cn(
+                  'w-4 h-4 flex-shrink-0 text-gray-900',
+                )}
+              />
+            <span className="flex-1">Ginee Logs</span>
+          </Link>
         </nav>
+
 
         {/* User Profile & Logout */}
         <div className="p-3 border-t border-gray-800">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   ShoppingCart, DollarSign, Users, Package,
   TrendingUp, Clock,
+  LayoutDashboardIcon,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -65,7 +66,7 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description={`Selamat datang kembali! Berikut ringkasan hari ini.`}
-        icon={LayoutDashboard}
+        icon={LayoutDashboardIcon}
       />
 
       {/* KPI Cards */}
@@ -141,7 +142,7 @@ export default function DashboardPage() {
                 tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}jt`}
               />
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                formatter={(value: any) => [formatCurrency(value), 'Revenue']}
                 contentStyle={{
                   borderRadius: '8px',
                   border: '1px solid #e5e7eb',
@@ -189,7 +190,7 @@ export default function DashboardPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number, _: unknown, props: { payload?: { label: string } }) => [
+                formatter={(value: any, _: unknown, props: { payload?: { label: string } }) => [
                   value,
                   props.payload?.label ?? '',
                 ]}
@@ -233,14 +234,5 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
-  );
-}
-
-// Needed for PageHeader icon
-function LayoutDashboard(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" />
-    </svg>
   );
 }

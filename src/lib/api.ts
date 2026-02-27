@@ -17,7 +17,7 @@ import Cookies from 'js-cookie';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 const ACCESS_TOKEN_KEY = 'sf_access_token';
 const REFRESH_TOKEN_KEY = 'sf_refresh_token';
 

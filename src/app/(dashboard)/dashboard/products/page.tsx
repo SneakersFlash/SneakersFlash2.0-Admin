@@ -9,7 +9,7 @@ import {
   FileSpreadsheet, CloudUpload, CloudDownload, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
-import api from '@/lib/axios'; 
+import api from '@/lib/api'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
