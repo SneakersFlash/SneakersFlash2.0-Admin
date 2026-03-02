@@ -34,3 +34,9 @@ export interface CreateVoucherPayload {
   expiresAt: string;
   isActive?: boolean;
 }
+
+export interface CreateBulkVoucherPayload extends Omit<CreateVoucherPayload, 'code'> {
+  quantity: number;
+  prefix?: string;
+  codeLength?: number;
+}

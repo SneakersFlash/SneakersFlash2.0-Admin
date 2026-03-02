@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import VouchersService from '@/services/vouchers.service';
 import { getErrorMessage } from '@/lib/api';
-import type { Voucher, CreateVoucherPayload, DiscountType } from '@/types/voucher.types';
+import type { Voucher, CreateVoucherPayload, CreateBulkVoucherPayload, DiscountType } from '@/types/voucher.types';
 import type { CampaignEvent } from '@/types/campaign.types';
 
 interface VoucherModalProps {
@@ -32,8 +32,10 @@ const formatForInput = (isoString?: string) => {
 
 export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, campaigns }: VoucherModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isBulkMode, setIsBulkMode] = useState(false); // <--- State Mode Bulk
   
-  const [formData, setFormData] = useState<CreateVoucherPayload>({
+  // Gabungkan form standar dan form bulk ke satu state agar mudah
+  const [formData, setFormData] = useState<CreateVoucherPayload & { quantity: number, prefix: string, codeLength: number }>({
     campaignId: 0,
     code: '',
     name: '',
@@ -47,11 +49,17 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
     startAt: '',
     expiresAt: '',
     isActive: true,
+    // Bulk Fields
+    quantity: 10,
+    prefix: 'PROMO',
+    codeLength: 8,
   });
 
   useEffect(() => {
     if (initialData) {
-      setFormData({ 
+      setIsBulkMode(false); // Edit tidak bisa bulk
+      setFormData(prev => ({ 
+        ...prev,
         campaignId: Number(initialData.campaignId),
         code: initialData.code,
         name: initialData.name,
@@ -65,13 +73,14 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
         startAt: formatForInput(initialData.startAt),
         expiresAt: formatForInput(initialData.expiresAt),
         isActive: initialData.isActive,
-      });
+      }));
     } else {
       setFormData({ 
         campaignId: campaigns.length > 0 ? Number(campaigns[0].id) : 0,
         code: '', name: '', description: '', discountType: 'percentage', 
         discountValue: 0, maxDiscountAmount: undefined, minPurchaseAmount: 0, 
-        usageLimitTotal: undefined, usageLimitPerUser: 1, startAt: '', expiresAt: '', isActive: true 
+        usageLimitTotal: undefined, usageLimitPerUser: 1, startAt: '', expiresAt: '', isActive: true,
+        quantity: 10, prefix: 'PROMO', codeLength: 8
       });
     }
   }, [initialData, isOpen, campaigns]);
@@ -95,18 +104,49 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
     e.preventDefault();
     try {
       setIsLoading(true);
-      const payload: CreateVoucherPayload = {
-        ...formData,
-        startAt: new Date(formData.startAt).toISOString(),
-        expiresAt: new Date(formData.expiresAt).toISOString(),
-      };
-
+      
       if (initialData) {
+        // UPDATE (Single)
+        const payload: Partial<CreateVoucherPayload> = {
+          ...formData,
+          startAt: new Date(formData.startAt).toISOString(),
+          expiresAt: new Date(formData.expiresAt).toISOString(),
+        };
         await VouchersService.update(initialData.id, payload);
         toast.success('Voucher diperbarui!');
       } else {
-        await VouchersService.create(payload);
-        toast.success('Voucher ditambahkan!');
+        // CREATE
+        if (isBulkMode) {
+          // Bulk Create
+          const bulkPayload: CreateBulkVoucherPayload = {
+            campaignId: formData.campaignId,
+            name: formData.name,
+            description: formData.description,
+            discountType: formData.discountType,
+            discountValue: formData.discountValue,
+            maxDiscountAmount: formData.maxDiscountAmount,
+            minPurchaseAmount: formData.minPurchaseAmount,
+            usageLimitTotal: formData.usageLimitTotal,
+            usageLimitPerUser: formData.usageLimitPerUser,
+            startAt: new Date(formData.startAt).toISOString(),
+            expiresAt: new Date(formData.expiresAt).toISOString(),
+            isActive: formData.isActive,
+            quantity: formData.quantity,
+            prefix: formData.prefix,
+            codeLength: formData.codeLength,
+          };
+          const res = await VouchersService.createBulk(bulkPayload);
+          toast.success(`${res.count} Voucher berhasil di-generate!`);
+        } else {
+          // Single Create
+          const singlePayload: CreateVoucherPayload = {
+            ...formData,
+            startAt: new Date(formData.startAt).toISOString(),
+            expiresAt: new Date(formData.expiresAt).toISOString(),
+          };
+          await VouchersService.create(singlePayload);
+          toast.success('Voucher ditambahkan!');
+        }
       }
       onSuccess();
       onClose();
@@ -128,6 +168,18 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
           
           {/* SECTION 1: INFO DASAR */}
           <div className="grid grid-cols-2 gap-4">
+            
+            {/* Opsi Mode Bulk (Hanya saat bikin baru) */}
+            {!initialData && (
+              <div className="col-span-2 flex items-center justify-between p-3 bg-blue-50/50 border border-blue-100 rounded-lg mb-2">
+                <div>
+                  <Label className="text-blue-900 font-bold">Generate Massal (Bulk Mode)</Label>
+                  <p className="text-xs text-blue-700 mt-0.5">Buat banyak kode voucher unik secara otomatis.</p>
+                </div>
+                <Switch checked={isBulkMode} onCheckedChange={setIsBulkMode} />
+              </div>
+            )}
+
             <div className="space-y-2 col-span-2">
               <Label>Tautkan ke Kampanye <span className="text-red-500">*</span></Label>
               <Select value={String(formData.campaignId)} onValueChange={(v) => handleSelectChange('campaignId', v)}>
@@ -138,15 +190,34 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Kode Voucher <span className="text-red-500">*</span></Label>
-              <Input name="code" value={formData.code} onChange={handleChange} required className="uppercase font-mono" placeholder="DISKON10" disabled={!!initialData} />
+            <div className="space-y-2 col-span-2 md:col-span-1">
+              <Label>Nama Voucher <span className="text-red-500">*</span></Label>
+              <Input name="name" value={formData.name} onChange={handleChange} required placeholder={isBulkMode ? "Kemerdekaan (akan jadi #1, #2)" : "Promo Spesial Kemerdekaan"} />
             </div>
 
-            <div className="space-y-2">
-              <Label>Nama Voucher <span className="text-red-500">*</span></Label>
-              <Input name="name" value={formData.name} onChange={handleChange} required placeholder="Promo Spesial Kemerdekaan" />
-            </div>
+            {/* Jika mode SINGLE, tampilkan KODE */}
+            {!isBulkMode ? (
+              <div className="space-y-2 col-span-2 md:col-span-1">
+                <Label>Kode Voucher <span className="text-red-500">*</span></Label>
+                <Input name="code" value={formData.code} onChange={handleChange} required={!isBulkMode} className="uppercase font-mono" placeholder="DISKON10" disabled={!!initialData} />
+              </div>
+            ) : (
+              // Jika mode BULK, tampilkan opsi Bulk
+              <div className="space-y-2 col-span-2 md:col-span-1 grid grid-cols-3 gap-2">
+                <div className="col-span-3">
+                  <Label>Jumlah Generate <span className="text-red-500">*</span></Label>
+                  <Input type="number" name="quantity" value={formData.quantity} onChange={handleChange} required={isBulkMode} min={1} max={1000} />
+                </div>
+                <div className="col-span-2">
+                  <Label>Prefix Teks</Label>
+                  <Input name="prefix" value={formData.prefix} onChange={handleChange} className="uppercase font-mono text-sm" placeholder="PROMO" />
+                </div>
+                <div className="col-span-1">
+                  <Label>Panjang</Label>
+                  <Input type="number" name="codeLength" value={formData.codeLength} onChange={handleChange} min={4} max={15} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* SECTION 2: LOGIKA DISKON */}
@@ -181,7 +252,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
                 {formData.discountType === 'percentage' && (
                   <div className="space-y-2">
                     <Label>Maks. Potongan Diskon (Rp)</Label>
-                    <Input type="number" name="maxDiscountAmount" value={formData.maxDiscountAmount || ''} onChange={handleChange} placeholder="Biarkan kosong jika tanpa batas" />
+                    <Input type="number" name="maxDiscountAmount" value={formData.maxDiscountAmount || ''} onChange={handleChange} placeholder="Kosong = Tanpa batas" />
                   </div>
                 )}
              </div>
@@ -190,7 +261,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
           {/* SECTION 3: BATASAN & WAKTU */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Batas Penggunaan Total (Kuota)</Label>
+              <Label>Kuota Per Voucher</Label>
               <Input type="number" name="usageLimitTotal" value={formData.usageLimitTotal || ''} onChange={handleChange} placeholder="Kosong = Unlimited" />
             </div>
 
@@ -220,7 +291,9 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>Batal</Button>
-            <Button type="submit" disabled={isLoading || !formData.code || !formData.campaignId}>Simpan Voucher</Button>
+            <Button type="submit" disabled={isLoading || (!isBulkMode && !formData.code) || !formData.campaignId}>
+              {isLoading ? 'Menyimpan...' : (isBulkMode ? `Generate ${formData.quantity} Voucher` : 'Simpan Voucher')}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

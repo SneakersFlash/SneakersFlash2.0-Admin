@@ -1,34 +1,38 @@
-import type { OrderStatus, PaymentStatus } from '@/types/order.types';
+import type { OrderStatus } from '@/types/order.types';
 import type { ProductStatus } from '@/types/product.types';
 import type { VoucherStatus, CampaignStatus } from '@/types/index';
+import { TransactionStatus } from '@/types/payment.types';
 
 // ─── Order Status Config ──────────────────────────────────────────────────────
 
+// ─── Order Status Config ──────────────────────────────────────────────────────
 export const ORDER_STATUS_CONFIG: Record<
   OrderStatus,
   { label: string; color: string; bgColor: string; icon: string }
 > = {
-  PENDING_PAYMENT: { label: 'Menunggu Pembayaran', color: 'text-yellow-700', bgColor: 'bg-yellow-100', icon: 'clock' },
-  PAID: { label: 'Sudah Dibayar', color: 'text-blue-700', bgColor: 'bg-blue-100', icon: 'check-circle' },
-  PROCESSING: { label: 'Diproses', color: 'text-indigo-700', bgColor: 'bg-indigo-100', icon: 'loader' },
-  PACKED: { label: 'Dikemas', color: 'text-purple-700', bgColor: 'bg-purple-100', icon: 'package' },
-  SHIPPED: { label: 'Dikirim', color: 'text-orange-700', bgColor: 'bg-orange-100', icon: 'truck' },
-  DELIVERED: { label: 'Terkirim', color: 'text-green-700', bgColor: 'bg-green-100', icon: 'check-circle' },
-  CANCELLED: { label: 'Dibatalkan', color: 'text-red-700', bgColor: 'bg-red-100', icon: 'x-circle' },
+  pending: { label: 'Pending', color: 'text-gray-700', bgColor: 'bg-gray-100', icon: 'clock' },
+  waiting_payment: { label: 'Menunggu Pembayaran', color: 'text-yellow-700', bgColor: 'bg-yellow-100', icon: 'clock' },
+  paid: { label: 'Sudah Dibayar', color: 'text-blue-700', bgColor: 'bg-blue-100', icon: 'check-circle' },
+  processing: { label: 'Diproses', color: 'text-indigo-700', bgColor: 'bg-indigo-100', icon: 'loader' },
+  shipped: { label: 'Dikirim', color: 'text-orange-700', bgColor: 'bg-orange-100', icon: 'truck' },
+  delivered: { label: 'Terkirim', color: 'text-teal-700', bgColor: 'bg-teal-100', icon: 'check-circle' },
+  completed: { label: 'Selesai', color: 'text-green-700', bgColor: 'bg-green-100', icon: 'check-circle' },
+  cancelled: { label: 'Dibatalkan', color: 'text-red-700', bgColor: 'bg-red-100', icon: 'x-circle' },
+  returned: { label: 'Diretur', color: 'text-purple-700', bgColor: 'bg-purple-100', icon: 'refresh-cw' },
 };
 
 // ─── Payment Status Config ────────────────────────────────────────────────────
 
 export const PAYMENT_STATUS_CONFIG: Record<
-  PaymentStatus,
+  TransactionStatus,
   { label: string; color: string; bgColor: string }
 > = {
-  PENDING:    { label: 'Pending',     color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
-  SETTLEMENT: { label: 'Lunas',       color: 'text-green-700',  bgColor: 'bg-green-100'  },
-  EXPIRE:     { label: 'Kadaluarsa',  color: 'text-gray-700',   bgColor: 'bg-gray-100'   },
-  CANCEL:     { label: 'Dibatalkan',  color: 'text-red-700',    bgColor: 'bg-red-100'    },
-  DENY:       { label: 'Ditolak',     color: 'text-red-700',    bgColor: 'bg-red-100'    },
-  REFUND:     { label: 'Refund',      color: 'text-purple-700', bgColor: 'bg-purple-100' },
+  pending:    { label: 'Pending',     color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
+  settlement: { label: 'Lunas',       color: 'text-green-700',  bgColor: 'bg-green-100'  },
+  expire:     { label: 'Kadaluarsa',  color: 'text-gray-700',   bgColor: 'bg-gray-100'   },
+  cancel:     { label: 'Dibatalkan',  color: 'text-red-700',    bgColor: 'bg-red-100'    },
+  deny:       { label: 'Ditolak',     color: 'text-red-700',    bgColor: 'bg-red-100'    },
+  refund:     { label: 'Refund',      color: 'text-purple-700', bgColor: 'bg-purple-100' },
 };
 
 // ─── Product Status Config ────────────────────────────────────────────────────

@@ -16,8 +16,8 @@ const OrdersService = {
    * Fetch paginated list of all orders (Admin).
    */
   async getOrders(params: OrderQueryParams): Promise<OrdersResponse> {
-    const { data } = await api.get<OrdersResponse>('/orders/admin');
-    // const { data } = await api.get<OrdersResponse>('/orders', { params });
+    // ⚠️ PERBAIKAN: Menambahkan { params } agar query dikirim ke backend
+    const { data } = await api.get<OrdersResponse>('/orders/admin', { params });
     return data;
   },
 

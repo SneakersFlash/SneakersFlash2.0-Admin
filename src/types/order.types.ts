@@ -1,17 +1,17 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export type OrderStatus =
-  | 'PENDING_PAYMENT'
-  | 'PAID'
-  | 'PROCESSING'
-  | 'SHIPPED'
-  | 'DELIVERED'
-  | 'CANCELLED'
-  | 'REFUNDED';
+  | 'pending'
+  | 'waiting_payment'
+  | 'paid'
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'completed'
+  | 'cancelled'
+  | 'returned';
 
 export type PaymentMethod = 'bank_transfer' | 'gopay' | 'qris' | 'credit_card' | 'cod';
-
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded';
 
 // ─── Sub-entities ─────────────────────────────────────────────────────────────
 
@@ -27,11 +27,10 @@ export interface OrderAddress {
 }
 
 export interface CourierInfo {
-  name: string;       // e.g. "JNE"
-  service: string;    // e.g. "REG"
-  trackingNumber?: string;
-  estimatedDays?: number;
+  name: string;
+  service: string;
   cost: number;
+  trackingNumber?: string;
 }
 
 export interface OrderItem {
@@ -39,18 +38,17 @@ export interface OrderItem {
   productName: string;
   variantSku: string;
   size: string;
-  color?: string;
-  imageUrl?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  imageUrl?: string | string[] | null; // Backend mengirim array atau null
 }
 
 export interface OrderUser {
-  id: string;
   name: string;
   email: string;
   phone?: string;
+  // id tidak di-return oleh backend
 }
 
 // ─── Main Order entity ────────────────────────────────────────────────────────
@@ -60,25 +58,20 @@ export interface Order {
   orderNumber: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
-  paymentStatus: PaymentStatus;
-  snapToken?: string;
+  voucherCode?: string | null;
 
   subtotal: number;
   shippingCost: number;
   discountAmount: number;
   total: number;
 
-  voucherCode?: string;
-  notes?: string;
-
-  user: OrderUser;
+  user: OrderUser | null; // Bisa null jika checkout sebagai guest
   address: OrderAddress;
   courier: CourierInfo;
   items: OrderItem[];
 
   createdAt: string;
-  updatedAt: string;
-  paidAt?: string;
+  paidAt?: string | null;
 }
 
 // ─── API Payloads ─────────────────────────────────────────────────────────────
@@ -95,10 +88,7 @@ export interface OrderQueryParams {
   page?: number;
   limit?: number;
   search?: string;
-  status?: OrderStatus | '';
-  paymentMethod?: PaymentMethod | '';
-  startDate?: string;
-  endDate?: string;
+  status?: OrderStatus | 'ALL' | '';
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

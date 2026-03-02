@@ -10,7 +10,7 @@ const ProductService = {
   // ─── Products ──────────────────────────────────────────────────────────────
 
   async getAll(params?: PaginationParams & ProductFilters): Promise<PaginatedResponse<Product>> {
-    const { data } = await api.get<PaginatedResponse<Product>>('/products/admin', { params });
+    const { data } = await api.get<PaginatedResponse<Product>>('/products', { params });
     return data;
   },
 

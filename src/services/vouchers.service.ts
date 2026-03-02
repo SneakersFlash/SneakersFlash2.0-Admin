@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import type { Voucher, CreateVoucherPayload } from '@/types/voucher.types';
+import type { Voucher, CreateVoucherPayload, CreateBulkVoucherPayload } from '@/types/voucher.types';
 
 const VouchersService = {
   async getAll(): Promise<Voucher[]> {
@@ -12,6 +12,11 @@ const VouchersService = {
     return data;
   },
 
+  async createBulk(payload: CreateBulkVoucherPayload): Promise<{ message: string; count: number }> {
+    const { data } = await api.post('/vouchers/bulk', payload);
+    return data;
+  },
+  
   async update(id: string | number, payload: Partial<CreateVoucherPayload>): Promise<Voucher> {
     const { data } = await api.patch<Voucher>(`/vouchers/${id}`, payload);
     return data;
