@@ -8,9 +8,9 @@ export interface Voucher {
   name: string;
   description?: string | null;
   discountType: DiscountType;
-  discountValue: number;
+  discountValue: any;
   maxDiscountAmount?: number | null;
-  minPurchaseAmount: number;
+  minPurchaseAmount: any;
   usageLimitTotal?: number | null;
   usageLimitPerUser: number;
   startAt: string;
