@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Megaphone, CalendarClock, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Megaphone, CalendarClock, Link as LinkIcon, FileSpreadsheet, X, Loader2, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import CampaignsService from '@/services/campaigns.service';
 import type { CampaignEvent } from '@/types/marketing.types';
@@ -12,13 +12,23 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { getErrorMessage } from '@/lib/api';
 import CampaignModal from '@/components/module/campaign/CampaignModal';
+import { useRouter } from 'next/navigation';
 
-export default function CampaignsPage() {
+export default function CampaignsWrapper() {
+  const router = useRouter();
+  
   const [campaigns, setCampaigns] = useState<CampaignEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignEvent | null>(null);
+
+  // === State untuk Modal Sync Google Sheet ===
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncCampaignId, setSyncCampaignId] = useState<string | number | null>(null);
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [sheetName, setSheetName] = useState('Sheet1');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchCampaigns = async () => {
     try {
@@ -55,6 +65,31 @@ export default function CampaignsPage() {
     } catch (error) {
       toast.error(getErrorMessage(error));
       fetchCampaigns(); 
+    }
+  };
+
+  // === Fungsi Eksekusi Sync ===
+  const handleSyncSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!syncCampaignId || !sheetUrl) return;
+
+    try {
+      setIsSyncing(true);
+      const response = await CampaignsService.syncFromSheet(syncCampaignId, { sheetUrl, sheetName });
+      
+      toast.success(response.message);
+      if (response.warning) {
+        toast.warning(response.warning, { duration: 8000 }); // Tampilkan warning lebih lama agar admin bisa baca SKU yang gagal
+      }
+      
+      setIsSyncModalOpen(false);
+      setSheetUrl('');
+      setSheetName('Sheet1');
+      fetchCampaigns(); // Refresh data produk (count)
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -134,9 +169,32 @@ export default function CampaignsPage() {
                     <td className="px-6 py-4 text-center">
                       <Switch checked={camp.isActive} onCheckedChange={() => toggleStatus(camp.id, camp.isActive)} />
                     </td>
-
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2 items-center">
+                        {/* Tombol Atur Produk (Pindah Halaman) */}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-orange-600 border-orange-200 hover:bg-orange-50" 
+                          onClick={() => router.push(`/dashboard/campaigns/${camp.id}/products`)}
+                          >
+                          <Package className="h-4 w-4 mr-1" /> Produk
+                        </Button>
+                        
+                        {/* Tombol Sync Sheet */}
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50" 
+                          title="Sync Produk dari Google Sheet"
+                          onClick={() => { 
+                            setSyncCampaignId(camp.id); 
+                            setIsSyncModalOpen(true); 
+                          }}
+                        >
+                          <FileSpreadsheet className="h-4 w-4" />
+                        </Button>
+                        
                         <Button variant="outline" size="icon" className="h-8 w-8 text-blue-600" onClick={() => { setSelectedCampaign(camp); setIsModalOpen(true); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -160,6 +218,67 @@ export default function CampaignsPage() {
         onSuccess={fetchCampaigns} 
         initialData={selectedCampaign} 
       />
+
+      {/* === MODAL SYNC GOOGLE SHEET === */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-md p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                Sync Produk Event
+              </h3>
+              <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full" onClick={() => !isSyncing && setIsSyncModalOpen(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <form onSubmit={handleSyncSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Link URL Google Sheet <span className="text-red-500">*</span></label>
+                <input 
+                  type="url" 
+                  required
+                  placeholder="https://docs.google.com/spreadsheets/d/1xxxx..."
+                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  value={sheetUrl}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  disabled={isSyncing}
+                />
+                <p className="text-xs text-gray-500">Pastikan akses Sheet diatur ke "Viewer" untuk Service Account Anda.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Nama Sheet (Opsional)</label>
+                <input 
+                  type="text" 
+                  placeholder="Sheet1"
+                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  value={sheetName}
+                  onChange={(e) => setSheetName(e.target.value)}
+                  disabled={isSyncing}
+                />
+                <p className="text-xs text-gray-500">Isi jika nama *tab* Sheet Anda bukan "Sheet1".</p>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsSyncModalOpen(false)} disabled={isSyncing}>
+                  Batal
+                </Button>
+                <Button type="submit" disabled={!sheetUrl || isSyncing} className="bg-green-600 hover:bg-green-700">
+                  {isSyncing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sedang Sync...
+                    </>
+                  ) : (
+                    'Mulai Sync'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
