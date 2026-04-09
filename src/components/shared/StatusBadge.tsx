@@ -6,13 +6,14 @@ import {
   VOUCHER_STATUS_CONFIG,
   CAMPAIGN_STATUS_CONFIG,
 } from '@/lib/constants';
-import type { OrderStatus, PaymentStatus } from '@/types/order.types';
+import type { OrderStatus } from '@/types/order.types';
 import type { ProductStatus } from '@/types/product.types';
 import type { VoucherStatus, CampaignStatus } from '@/types/index';
+import { TransactionStatus } from '@/types/payment.types';
 
 type StatusBadgeProps =
   | { type: 'order';    status: OrderStatus    }
-  | { type: 'payment';  status: PaymentStatus  }
+  | { type: 'payment';  status: TransactionStatus  }
   | { type: 'product';  status: ProductStatus  }
   | { type: 'voucher';  status: VoucherStatus  }
   | { type: 'campaign'; status: CampaignStatus };

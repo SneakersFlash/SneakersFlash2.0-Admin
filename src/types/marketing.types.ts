@@ -9,6 +9,8 @@ export interface CampaignEvent {
   startAt: string;
   endAt: string;
   isActive: boolean;
+  isTimer: boolean;
+  sort: number;
   _count?: {
     eventProducts: number;
   };
@@ -24,4 +26,6 @@ export interface CreateCampaignPayload {
   startAt: string;
   endAt: string;
   isActive?: boolean;
+  isTimer?: boolean;
+  sort?: number
 }

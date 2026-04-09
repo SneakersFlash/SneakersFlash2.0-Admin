@@ -42,6 +42,8 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
     endAt: '',
     styleConfig: { backgroundColor: '#ffffff' },
     isActive: true,
+    isTimer: true,
+    sort: 0,
   });
 
   // State terpisah untuk menampung file desktop dan mobile
@@ -59,6 +61,8 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
         endAt: formatForInput(initialData.endAt),
         styleConfig: initialData.styleConfig || { backgroundColor: '#ffffff' },
         isActive: initialData.isActive,
+        isTimer: initialData.isTimer,
+        sort: initialData.sort,
       });
       setPreviews({ 
         desktop: initialData.bannerDesktopUrl || null, 
@@ -66,8 +70,8 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
       });
     } else {
       setFormData({ 
-        title: '', slug: '', bannerDesktopUrl: '', bannerMobileUrl: '', 
-        startAt: '', endAt: '', styleConfig: { backgroundColor: '#ffffff' }, isActive: true 
+        title: '', slug: '', bannerDesktopUrl: '', bannerMobileUrl: '', sort: 0,
+        startAt: '', endAt: '', styleConfig: { backgroundColor: '#ffffff' }, isActive: true , isTimer: true
       });
       setPreviews({ desktop: null, mobile: null });
     }
@@ -175,6 +179,11 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
               <Input type="datetime-local" name="endAt" value={formData.endAt} onChange={handleChange} required />
             </div>
 
+            <div className="space-y-2">
+              <Label>Sort <span className="text-red-500">*</span></Label>
+              <Input name="sort" value={formData.sort} type='number' onChange={handleChange} required placeholder="0-100" />
+            </div>
+
             <div className="space-y-2 md:col-span-2">
               <Label>Warna Tema Background</Label>
               <div className="flex items-center gap-2">
@@ -189,6 +198,13 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                 <p className="text-xs text-gray-500">Bisa diakses pelanggan atau tidak.</p>
               </div>
               <Switch checked={formData.isActive} onCheckedChange={(checked) => setFormData(p => ({...p, isActive: checked}))} />
+            </div>
+            <div className="space-y-2 md:col-span-2 flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+              <div className="space-y-0.5">
+                <Label>Timer</Label>
+                <p className="text-xs text-gray-500">Munculkan Timer di Home Page atau tidak.</p>
+              </div>
+              <Switch checked={formData.isTimer} onCheckedChange={(checked) => setFormData(p => ({...p, isTimer: checked}))} />
             </div>
           </div>
 

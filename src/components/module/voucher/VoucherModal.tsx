@@ -13,14 +13,14 @@ import {
 import VouchersService from '@/services/vouchers.service';
 import { getErrorMessage } from '@/lib/api';
 import type { Voucher, CreateVoucherPayload, CreateBulkVoucherPayload, DiscountType } from '@/types/voucher.types';
-import type { CampaignEvent } from '@/types/campaign.types';
+// import type { CampaignEvent } from '@/types/campaign.types';
 
 interface VoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   initialData?: Voucher | null;
-  campaigns: CampaignEvent[];
+  campaigns: any[];
 }
 
 const formatForInput = (isoString?: string) => {

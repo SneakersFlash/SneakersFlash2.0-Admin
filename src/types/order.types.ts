@@ -13,6 +13,12 @@ export type OrderStatus =
 
 export type PaymentMethod = 'bank_transfer' | 'gopay' | 'qris' | 'credit_card' | 'cod';
 
+export type PaymentStatus = 
+  | 'pending'
+  | 'success'
+  | 'failed'
+  | 'expired'
+  | 'refunded';
 // ─── Sub-entities ─────────────────────────────────────────────────────────────
 
 export interface OrderAddress {

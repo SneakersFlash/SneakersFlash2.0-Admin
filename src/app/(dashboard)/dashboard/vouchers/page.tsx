@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import VouchersService from '@/services/vouchers.service';
 import CampaignsService from '@/services/campaigns.service';
 import type { Voucher } from '@/types/voucher.types';
-import type { CampaignEvent } from '@/types/campaign.types';
+// import type { CampaignEvent } from '@/types/campaign.types';
 import PageHeader from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import VoucherModal from '@/components/module/voucher/VoucherModal';
 
 export default function VouchersPage() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [campaigns, setCampaigns] = useState<CampaignEvent[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [isModalOpen, setIsModalOpen] = useState(false);

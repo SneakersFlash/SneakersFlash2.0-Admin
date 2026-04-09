@@ -71,7 +71,7 @@ export default function CategoryModal({
         toast.error('Hanya file gambar yang diperbolehkan!');
         return;
       }
-      if (file.size > 2 * 1024 * 1024) { // Validasi 2MB sesuai backend
+      if (file.size > 5 * 1024 * 1024) { // Validasi 2MB sesuai backend
         toast.error('Ukuran maksimal gambar adalah 2MB!');
         return;
       }
