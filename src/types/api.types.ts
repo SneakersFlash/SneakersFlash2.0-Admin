@@ -16,6 +16,8 @@ export interface PaginationMeta {
   page: number;
   limit: number;
   totalPages: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
 }
 
 export interface PaginationParams {

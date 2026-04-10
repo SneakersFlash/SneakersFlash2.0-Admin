@@ -12,7 +12,7 @@ import ProductService from '@/services/products.service';
 import OrderService from '@/services/orders.service';
 import { VoucherService } from '@/services/other.service';
 import type { Product, ProductFilters } from '@/types/product.types';
-import type { Order, OrderFilters } from '@/types/order.types';
+import type { Order, OrderQueryParams } from '@/types/order.types';
 import type { Voucher } from '@/types';
 import type { PaginationMeta, PaginationParams } from '@/types/api.types';
 import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
@@ -74,7 +74,7 @@ export function useProducts(filters?: ProductFilters): UseListState<Product> {
 
 // ─── useOrders ───────────────────────────────────────────────────────────────
 
-export function useOrders(filters?: OrderFilters): UseListState<Order> {
+export function useOrders(filters?: OrderQueryParams): UseListState<Order> {
   const [data, setData] = useState<Order[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,7 +89,7 @@ export function useOrders(filters?: OrderFilters): UseListState<Order> {
     let cancelled = false;
     setIsLoading(true);
 
-    OrderService.getAll({ page, limit: pageSize, ...filters })
+    OrderService.getOrders({ page, limit: pageSize, ...filters })
       .then((res) => {
         if (!cancelled) { setData(res.data); setMeta(res.meta); }
       })

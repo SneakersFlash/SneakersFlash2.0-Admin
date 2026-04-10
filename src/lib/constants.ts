@@ -28,10 +28,12 @@ export const PAYMENT_STATUS_CONFIG: Record<
   { label: string; color: string; bgColor: string }
 > = {
   pending:    { label: 'Pending',     color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
+  capture:    { label: 'Berhasil',    color: 'text-blue-700',   bgColor: 'bg-blue-100'   }, // Added missing 'capture'
   settlement: { label: 'Lunas',       color: 'text-green-700',  bgColor: 'bg-green-100'  },
   expire:     { label: 'Kadaluarsa',  color: 'text-gray-700',   bgColor: 'bg-gray-100'   },
   cancel:     { label: 'Dibatalkan',  color: 'text-red-700',    bgColor: 'bg-red-100'    },
   deny:       { label: 'Ditolak',     color: 'text-red-700',    bgColor: 'bg-red-100'    },
+  failure:    { label: 'Gagal',       color: 'text-red-800',    bgColor: 'bg-red-200'    }, // Added missing 'failure'
   refund:     { label: 'Refund',      color: 'text-purple-700', bgColor: 'bg-purple-100' },
 };
 

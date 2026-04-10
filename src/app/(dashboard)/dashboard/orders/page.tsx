@@ -259,9 +259,9 @@ export default function OrdersPage() {
         </div>
 
         {/* ── PAGINATION ─────────────────────────────────────────────────────── */}
-        {meta && meta.lastPage > 1 && (
+        {meta && meta.totalPages > 1 && (
           <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <span className="text-sm text-gray-500">Halaman {meta.page} dari {meta.lastPage}</span>
+            <span className="text-sm text-gray-500">Halaman {meta.page} dari {meta.totalPages}</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={!meta.hasPrevPage}><ChevronLeft className="w-4 h-4 mr-1" /> Prev</Button>
               <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={!meta.hasNextPage}>Next <ChevronRight className="w-4 h-4 ml-1" /></Button>

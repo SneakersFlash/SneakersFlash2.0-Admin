@@ -19,6 +19,7 @@ export type PaymentStatus =
   | 'failed'
   | 'expired'
   | 'refunded';
+  
 // ─── Sub-entities ─────────────────────────────────────────────────────────────
 
 export interface OrderAddress {
@@ -105,7 +106,7 @@ export interface OrderMeta {
   total: number;
   page: number;
   limit: number;
-  lastPage: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
+  totalPages: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
 }
