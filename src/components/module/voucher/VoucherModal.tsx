@@ -105,10 +105,12 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
     try {
       setIsLoading(true);
       
+      const { quantity, prefix, codeLength, ...singleFormData } = formData;
+
       if (initialData) {
         // UPDATE (Single)
         const payload: Partial<CreateVoucherPayload> = {
-          ...formData,
+          ...singleFormData, // <-- Gunakan data yang sudah dibersihkan
           startAt: new Date(formData.startAt).toISOString(),
           expiresAt: new Date(formData.expiresAt).toISOString(),
         };
@@ -117,7 +119,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
       } else {
         // CREATE
         if (isBulkMode) {
-          // Bulk Create
+          // Bulk Create (Ini dibiarkan utuh karena butuh semuanya)
           const bulkPayload: CreateBulkVoucherPayload = {
             campaignId: formData.campaignId,
             name: formData.name,
@@ -140,7 +142,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
         } else {
           // Single Create
           const singlePayload: CreateVoucherPayload = {
-            ...formData,
+            ...singleFormData, // <-- Gunakan data yang sudah dibersihkan
             startAt: new Date(formData.startAt).toISOString(),
             expiresAt: new Date(formData.expiresAt).toISOString(),
           };
