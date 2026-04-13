@@ -31,3 +31,24 @@ export interface CreateBrandPayload {
   name: string;
   logoUrl?: string;
 }
+
+export interface PromoCampaign {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  totalBudgetLimit?: number | null;
+  totalUsedBudget: number;
+  startAt: string;
+  endAt: string;
+  isActive: boolean;
+}
+
+export interface CreatePromoCampaignPayload {
+  name: string;
+  description?: string;
+  totalBudgetLimit?: number;
+  startAt: string;
+  endAt: string;
+  isActive?: boolean;
+}

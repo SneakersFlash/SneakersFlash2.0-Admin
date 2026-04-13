@@ -113,8 +113,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Marketing & Promosi',
     items: [
       { title: 'Banner Promo', href: '/dashboard/banners', icon: 'image-icon' },
-      { title: 'Kampanye (Events)', href: '/dashboard/campaigns', icon: 'megaphone' },
-      { title: 'Voucher', href: '/dashboard/vouchers', icon: 'ticket' },
+      { title: 'Events', href: '/dashboard/campaigns', icon: 'megaphone' },
+      { title: 'Promo & Voucher', href: '/dashboard/promo-campaigns', icon: 'ticket' },
     ]
   },
   {

@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, CreditCard,
   Truck, Ticket, Warehouse, Megaphone, Bell, Users, LogOut,
-  ChevronRight, X, Handshake, Image as ImageIcon, LogsIcon
+  ChevronRight, X, Handshake, Image as ImageIcon, LogsIcon,
+  Siren
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +33,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'handshake':        Handshake,
   'image-icon':       ImageIcon,
   'logs':             LogsIcon,
+  'siren':            Siren
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────

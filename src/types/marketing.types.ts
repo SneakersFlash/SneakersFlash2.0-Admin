@@ -29,3 +29,26 @@ export interface CreateCampaignPayload {
   isTimer?: boolean;
   sort?: number
 }
+
+// --- TAMBAHKAN DI BAWAH FILE ---
+
+export interface PromoCampaign {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  totalBudgetLimit?: number | null;
+  totalUsedBudget: number;
+  startAt: string;
+  endAt: string;
+  isActive: boolean;
+}
+
+export interface CreatePromoCampaignPayload {
+  name: string;
+  description?: string;
+  totalBudgetLimit?: number;
+  startAt: string;
+  endAt: string;
+  isActive?: boolean;
+}

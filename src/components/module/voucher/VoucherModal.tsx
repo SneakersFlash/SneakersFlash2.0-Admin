@@ -20,7 +20,8 @@ interface VoucherModalProps {
   onClose: () => void;
   onSuccess: () => void;
   initialData?: Voucher | null;
-  campaigns: any[];
+  // campaigns?: any[];
+  campaignId: any
 }
 
 const formatForInput = (isoString?: string) => {
@@ -30,13 +31,13 @@ const formatForInput = (isoString?: string) => {
   return date.toISOString().slice(0, 16);
 };
 
-export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, campaigns }: VoucherModalProps) {
+export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, campaignId }: VoucherModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isBulkMode, setIsBulkMode] = useState(false); // <--- State Mode Bulk
   
   // Gabungkan form standar dan form bulk ke satu state agar mudah
   const [formData, setFormData] = useState<CreateVoucherPayload & { quantity: number, prefix: string, codeLength: number }>({
-    campaignId: 0,
+    campaignId: campaignId,
     code: '',
     name: '',
     description: '',
@@ -60,7 +61,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
       setIsBulkMode(false); // Edit tidak bisa bulk
       setFormData(prev => ({ 
         ...prev,
-        campaignId: Number(initialData.campaignId),
+        campaignId: Number(campaignId),
         code: initialData.code,
         name: initialData.name,
         description: initialData.description || '',
@@ -76,14 +77,14 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
       }));
     } else {
       setFormData({ 
-        campaignId: campaigns.length > 0 ? Number(campaigns[0].id) : 0,
+        campaignId: Number(campaignId) ?? 0,
         code: '', name: '', description: '', discountType: 'percentage', 
         discountValue: 0, maxDiscountAmount: undefined, minPurchaseAmount: 0, 
         usageLimitTotal: undefined, usageLimitPerUser: 1, startAt: '', expiresAt: '', isActive: true,
         quantity: 10, prefix: 'PROMO', codeLength: 8
       });
     }
-  }, [initialData, isOpen, campaigns]);
+  }, [initialData, isOpen, campaignId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -121,7 +122,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
         if (isBulkMode) {
           // Bulk Create (Ini dibiarkan utuh karena butuh semuanya)
           const bulkPayload: CreateBulkVoucherPayload = {
-            campaignId: formData.campaignId,
+            campaignId: campaignId,
             name: formData.name,
             description: formData.description,
             discountType: formData.discountType,
@@ -187,7 +188,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
               <Select value={String(formData.campaignId)} onValueChange={(v) => handleSelectChange('campaignId', v)}>
                 <SelectTrigger><SelectValue placeholder="Pilih Kampanye..." /></SelectTrigger>
                 <SelectContent>
-                  {campaigns.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.title}</SelectItem>)}
+                  {/* {campaigns.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.title}</SelectItem>)} */}
                 </SelectContent>
               </Select>
             </div>
