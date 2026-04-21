@@ -1,5 +1,6 @@
+// src/components/module/order/OrderDetailModal.tsx
 import { useState, useEffect } from 'react';
-import { Package, Truck, CheckCircle2, User, MapPin, Phone } from 'lucide-react';
+import { Package, Truck, CheckCircle2, User, MapPin, Phone, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import OrdersService from '@/services/orders.service';
+import api from '@/lib/api'; // Pastikan import api axios kamu
 import { getErrorMessage } from '@/lib/api';
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import type { Order, OrderStatus } from '@/types/order.types';
@@ -18,18 +20,53 @@ interface OrderDetailModalProps {
   onRefresh: () => void;
 }
 
+// Data Dummy Tracking (Sementara sebelum API Waybill Backend siap)
+const mosk = {
+  "trackingNumber": "JNT1234567890",
+  "courier": "J&T Express",
+  "service": "EZ",
+  "currentStatus": "OUT_FOR_DELIVERY",
+  "estimatedDelivery": new Date().toISOString(),
+  "history": [
+    {
+      "timestamp": new Date().toISOString(),
+      "status": "OUT_FOR_DELIVERY",
+      "description": "Paket sedang dibawa kurir menuju alamat penerima.",
+      "location": "Jakarta Selatan"
+    },
+    {
+      "timestamp": new Date(Date.now() - 86400000).toISOString(),
+      "status": "IN_TRANSIT",
+      "description": "Paket telah tiba di fasilitas penyortiran.",
+      "location": "Jakarta Pusat"
+    },
+    {
+      "timestamp": new Date(Date.now() - 172800000).toISOString(),
+      "status": "PICKED_UP",
+      "description": "Paket telah diambil oleh kurir dari pengirim.",
+      "location": "Gudang SneakersFlash"
+    }
+  ]
+};
+
 export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: OrderDetailModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  const [trackingData, setTrackingData] = useState<any>(null); // State untuk menyimpan hasil lacak resi
 
   useEffect(() => {
-    if (order?.courier?.trackingNumber) {
+    if (order?.awbTrackingNumber) {
+      setTrackingNumber(order.awbTrackingNumber);
+    } else if (order?.trackingNumber) {
+      setTrackingNumber(order.trackingNumber);
+    } else if (order?.courier?.trackingNumber) {
       setTrackingNumber(order.courier.trackingNumber);
     } else {
       setTrackingNumber('');
     }
     setCancelReason('');
+    setTrackingData(null); // Reset tracking saat modal dibuka untuk pesanan lain
   }, [order]);
 
   if (!order) return null;
@@ -38,9 +75,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     if (newStatus === 'shipped' && !trackingNumber.trim()) {
-      return toast.error('Nomor Resi wajib diisi untuk mengirim barang!');
+      return toast.error('Nomor Resi wajib diisi untuk mengirim barang secara manual!');
     }
-    
     try {
       setIsProcessing(true);
       await OrdersService.updateStatus(String(order.id), { 
@@ -53,6 +89,92 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleKomercePickup = async () => {
+    try {
+      setIsProcessing(true);
+      await OrdersService.requestKomercePickup(String(order.id));
+      toast.success('Kurir Komerce berhasil dijadwalkan untuk pickup!');
+      onRefresh();
+      onClose();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 👇 FUNGSI BARU: CETAK LABEL KOMERCE (MENGGUNAKAN BASE64 BLOB)
+  const handlePrintLabel = async () => {
+    if (!order.komerceOrderId) {
+      return toast.error('Pesanan ini tidak memiliki Komerce Order ID');
+    }
+
+    // 1. Buka tab kosong (Bypass Popup Blocker)
+    const printWindow = window.open('', '_blank');
+
+    try {
+      setIsProcessing(true);
+      if (printWindow) {
+        printWindow.document.write('Memuat dokumen resi pengiriman...');
+      }
+
+      // 2. Panggil API backend kamu
+      const { data } = await api.get(`/logistics/label/${order.komerceOrderId}`);
+      
+      // 3. Gunakan data BASE64, abaikan pdf_url yang sering 404 di Sandbox
+      if (data?.base64) {
+        // Trik jitu mengubah Base64 menjadi file Blob PDF asli di browser
+        const base64Response = await fetch(`data:application/pdf;base64,${data.base64}`);
+        const blob = await base64Response.blob();
+        
+        // Buat URL lokal di browser (hanya hidup di tab pengguna)
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Arahkan tab ke URL lokal tersebut
+        if (printWindow) {
+          printWindow.location.href = blobUrl;
+        }
+      } 
+      // Fallback jika anehnya base64 kosong tapi URL ada (buat jaga-jaga di Production)
+      else if (data?.pdf_url) {
+        if (printWindow) {
+          printWindow.location.href = data.pdf_url;
+        }
+      } else {
+        if (printWindow) printWindow.close();
+        toast.error('Data label gagal didapatkan dari Komerce.');
+      }
+    } catch (error) {
+      if (printWindow) printWindow.close();
+      toast.error(getErrorMessage(error) || 'Gagal mencetak label. Pastikan kurir sudah di-request pickup.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 👇 FUNGSI BARU: LACAK PESANAN (TRACKING)
+  const handleTrackOrder = async () => {
+    try {
+      setIsProcessing(true);
+      // NOTE: Jika backend kamu sudah punya endpoint tracking RajaOngkir/Komerce, ganti kode di bawah ini:
+      // const resi = order.awbTrackingNumber || order.trackingNumber;
+      // const courier = order.courierName;
+      // const { data } = await api.post('/logistics/waybill', { waybill: resi, courier });
+      // setTrackingData(data);
+      
+      // Simulasi Dummy (Ganti dengan request di atas jika API backend sudah siap)
+      setTimeout(() => {
+        setTrackingData(mosk);
+        toast.success('Berhasil memuat status pengiriman');
+        setIsProcessing(false);
+      }, 800);
+      
+    } catch (error) {
+      toast.error(getErrorMessage(error));
       setIsProcessing(false);
     }
   };
@@ -74,7 +196,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+      <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader className="flex flex-row items-center justify-between pr-6 border-b pb-4">
           <div>
             <DialogTitle className="text-xl font-bold font-mono">Pesanan #{order.orderNumber || order.id}</DialogTitle>
@@ -114,8 +236,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
             <div>
               <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center"><Truck className="w-4 h-4 mr-2"/> Kurir Pengiriman</h4>
               <div className="bg-gray-50 p-3 rounded-lg text-sm border border-gray-100">
-                <p className="font-semibold text-gray-900 uppercase">{order.courier?.name} - {order.courier?.service}</p>
-                <p className="text-gray-600 text-xs mt-0.5">Ongkir: Rp {Number(order.courier?.cost || 0).toLocaleString('id-ID')}</p>
+                <p className="font-semibold text-gray-900 uppercase">{order.courierName || order.courier?.name} - {order.courierService || order.courier?.service}</p>
+                <p className="text-gray-600 text-xs mt-0.5">Ongkir: Rp {Number(order.shippingCost || order.courier?.cost || 0).toLocaleString('id-ID')}</p>
               </div>
             </div>
           </div>
@@ -124,15 +246,15 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           <div>
             <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center"><Package className="w-4 h-4 mr-2"/> Rincian Barang</h4>
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
-              {order.items?.map((item: any) => (
+              {order.orderItems?.map((item: any) => (
                 <div key={item.id} className="flex gap-3 items-center border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                   <div className="w-12 h-12 bg-white rounded border overflow-hidden flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {item.imageUrl ? <img src={item.imageUrl[0] || item.imageUrl} alt="" className="object-cover w-full h-full"/> : <Package className="w-6 h-6 m-3 text-gray-300"/>}
+                    {item.productImage ? <img src={item.productImage[0] || item.productImage} alt="" className="object-cover w-full h-full"/> : <Package className="w-6 h-6 m-3 text-gray-300"/>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
-                    <p className="text-xs text-gray-500">Var: {item.variantSku} | Ukuran: {item.size} | Qty: {item.quantity}</p>
+                    <p className="text-xs text-gray-500">Var: {item.variantName || item.variantSku} | Qty: {item.quantity}</p>
                   </div>
                   <div className="text-sm font-bold text-gray-900">
                     Rp {Number(item.subtotal).toLocaleString('id-ID')}
@@ -142,13 +264,13 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
               <Separator className="my-2" />
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Total Pembayaran</span>
-                <span className="font-bold text-emerald-600">Rp {Number(order.total).toLocaleString('id-ID')}</span>
+                <span className="font-bold text-emerald-600">Rp {Number(order.finalAmount || order.total).toLocaleString('id-ID')}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Area Aksi Status (Sesuai Logic Enum Baru) ─────────────────────── */}
+        {/* ── Area Aksi Status ─────────────────────── */}
         <div className="border-t pt-4 space-y-4">
           
           {/* PAID -> PROCESSING */}
@@ -159,22 +281,22 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
             </div>
           )}
 
-          {/* PROCESSING -> SHIPPED (Input Resi di sini) */}
-          {order.status === 'processing' && (
-            <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 flex flex-col gap-3">
+          {/* PROCESSING -> SHIPPED */}
+          {order.status === 'processing' &&(
+            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex flex-col gap-3">
               <div className="space-y-1">
-                <label className="text-sm font-bold text-orange-900">Input Nomor Resi ({order.courier?.name})</label>
-                <p className="text-xs text-orange-700">Pesanan telah diproses. Masukkan resi kurir untuk mengirim barang.</p>
+                <label className="text-sm font-bold text-indigo-900">Pesanan Siap Dikirim?</label>
+                <p className="text-xs text-indigo-700">Kemas barang, cetak label resi, lalu panggil kurir Komerce.</p>
               </div>
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="Contoh: JNT1234567890" 
-                  value={trackingNumber} 
-                  onChange={(e) => setTrackingNumber(e.target.value)} 
-                  className="bg-white"
-                />
-                <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing || !trackingNumber} className="bg-orange-600 hover:bg-orange-700 whitespace-nowrap">
-                  <Truck className="w-4 h-4 mr-2" /> Kirim Barang
+              <div className="flex gap-2 mt-1">
+                 {/* Tombol Cetak Label (Bisa dicetak meski masih processing selama sudah ada Komerce ID) */}
+                 {order.komerceOrderId && (
+                  <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
+                    <Printer className="w-4 h-4 mr-2" /> Cetak Label
+                  </Button>
+                )}
+                <Button onClick={handleKomercePickup} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
+                  <Truck className="w-4 h-4 mr-2" /> Panggil Kurir (Pickup)
                 </Button>
               </div>
             </div>
@@ -182,14 +304,60 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
           {/* SHIPPED -> DELIVERED */}
           {order.status === 'shipped' && (
-            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border">
-              <div>
-                <p className="text-sm text-gray-500">Nomor Resi Pengiriman</p>
-                <p className="font-bold text-lg font-mono tracking-wider">{order.courier?.trackingNumber || trackingNumber || '-'}</p>
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-4 rounded-lg border gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Nomor Resi Pengiriman</p>
+                  <p className="font-bold text-lg font-mono tracking-wider text-gray-900">{order.awbTrackingNumber || order.trackingNumber || trackingNumber || '-'}</p>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {/* Tombol Cetak Label di status Shipped */}
+                  {order.komerceOrderId && (
+                    <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white">
+                      <Printer className="w-4 h-4 mr-2" /> Cetak Label
+                    </Button>
+                  )}
+                  
+                  {/* Tombol Lacak Pesanan */}
+                  <Button variant="outline" onClick={handleTrackOrder} disabled={isProcessing} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white">
+                    <MapPin className="w-4 h-4 mr-2" /> Lacak Pesanan
+                  </Button>
+                  
+                  <Button variant="outline" onClick={() => handleUpdateStatus('delivered')} disabled={isProcessing} className="text-green-600 border-green-200 hover:bg-green-50 bg-white">
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Tandai Terkirim
+                  </Button>
+                </div>
               </div>
-              <Button variant="outline" onClick={() => handleUpdateStatus('delivered')} disabled={isProcessing} className="text-green-600 border-green-200 hover:bg-green-50">
-                <CheckCircle2 className="w-4 h-4 mr-2" /> Tandai Terkirim
-              </Button>
+
+              {/* TAMPILAN TIMELINE TRACKING */}
+              {trackingData && trackingData.history && (
+                <div className="bg-white border rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
+                  <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center">
+                    <Truck className="w-4 h-4 mr-2" /> Riwayat Perjalanan Paket
+                  </h4>
+                  <div className="relative pl-6 border-l-2 border-indigo-100 space-y-6">
+                    {trackingData.history.map((track: any, idx: number) => (
+                      <div key={idx} className="relative">
+                        <div className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 border-white ${idx === 0 ? 'bg-indigo-600' : 'bg-gray-300'}`}></div>
+                        <div className="space-y-1">
+                          <p className={`text-sm font-bold ${idx === 0 ? 'text-indigo-900' : 'text-gray-700'}`}>{track.status}</p>
+                          <p className="text-sm text-gray-600 leading-relaxed">{track.description}</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                            <span>{new Date(track.timestamp || track.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            {track.location && (
+                              <>
+                                <span>•</span>
+                                <span className="font-medium text-gray-600">{track.location}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -203,7 +371,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           )}
 
           {/* ZONA PEMBATALAN */}
-          {['pending', 'waiting_payment', 'paid', 'processing'].includes(order.status) && order.status !== 'paid' && (
+          {['pending', 'waiting_payment', 'paid'].includes(order.status) && (
             <div className="mt-6 pt-4 border-t border-dashed">
               <p className="text-xs font-bold text-red-600 mb-2">Zona Bahaya: Pembatalan</p>
               <div className="flex gap-2">

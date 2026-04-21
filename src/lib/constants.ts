@@ -13,7 +13,7 @@ export const ORDER_STATUS_CONFIG: Record<
   pending: { label: 'Pending', color: 'text-gray-700', bgColor: 'bg-gray-100', icon: 'clock' },
   waiting_payment: { label: 'Menunggu Pembayaran', color: 'text-yellow-700', bgColor: 'bg-yellow-100', icon: 'clock' },
   paid: { label: 'Sudah Dibayar', color: 'text-blue-700', bgColor: 'bg-blue-100', icon: 'check-circle' },
-  processing: { label: 'Diproses', color: 'text-indigo-700', bgColor: 'bg-indigo-100', icon: 'loader' },
+  processing: { label: 'Sudah dibayar', color: 'text-indigo-700', bgColor: 'bg-indigo-100', icon: 'loader' },
   shipped: { label: 'Dikirim', color: 'text-orange-700', bgColor: 'bg-orange-100', icon: 'truck' },
   delivered: { label: 'Terkirim', color: 'text-teal-700', bgColor: 'bg-teal-100', icon: 'check-circle' },
   completed: { label: 'Selesai', color: 'text-green-700', bgColor: 'bg-green-100', icon: 'check-circle' },

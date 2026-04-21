@@ -186,21 +186,39 @@ export default function OrdersPage() {
         </Card>
       </div>
 
-      {/* ── FILTER & SEARCH ────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input placeholder="Cari ID Pesanan, Nama, atau Resi..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+        
+        {/* Header Tabs (Scrollable on Mobile) */}
+        <div className="flex overflow-x-auto border-b border-gray-100 bg-gray-50/50 px-2 pt-2 no-scrollbar">
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => { setStatus(opt.value as OrderStatus | 'ALL'); setPage(1); }}
+              className={`whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                status === opt.value
+                  ? 'border-indigo-600 text-indigo-600 bg-white rounded-t-lg shadow-[0_-2px_10px_rgba(0,0,0,0.02)]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-100/50 rounded-t-lg'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-        <div className="w-full sm:w-64">
-          <Select value={status} onValueChange={(val: any) => { setStatus(val); setPage(1); }}>
-            <SelectTrigger><SelectValue placeholder="Filter Status" /></SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+        {/* Search Bar Area */}
+        <div className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Cari ID Pesanan, Nama, atau Resi..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              className="pl-9 bg-gray-50 border-gray-200 focus-visible:ring-indigo-500" 
+            />
+          </div>
+          <div className="text-sm text-gray-500 font-medium px-2">
+            Menampilkan <span className="text-gray-900 font-bold">{orders.length}</span> pesanan
+          </div>
         </div>
       </div>
 
