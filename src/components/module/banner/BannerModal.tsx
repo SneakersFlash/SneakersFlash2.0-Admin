@@ -188,6 +188,7 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
               ) : (
                 <div onClick={() => desktopInputRef.current?.click()} className="h-24 border-2 border-dashed rounded flex items-center justify-center cursor-pointer hover:bg-gray-50">
                   <ImageIcon className="text-gray-400" />
+                  {formData.position === 'home_middle' ? '3040 x 1408' : '1600 x 500 px'}
                 </div>
               )}
               <input ref={desktopInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('desktop', e)} />
@@ -205,6 +206,7 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
               ) : (
                 <div onClick={() => mobileInputRef.current?.click()} className="h-24 border-2 border-dashed rounded flex items-center justify-center cursor-pointer hover:bg-gray-50">
                   <ImageIcon className="text-gray-400" />
+                  1280 x 930 px
                 </div>
               )}
               <input ref={mobileInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('mobile', e)} />

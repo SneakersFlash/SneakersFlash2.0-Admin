@@ -200,6 +200,7 @@ export default function CategoryModal({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImageIcon className="w-8 h-8 mb-2" />
+                1600 x 500 px
                 <span className="text-xs font-medium text-gray-500">Pilih Gambar</span>
               </div>
             )}

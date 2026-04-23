@@ -223,6 +223,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                 <div onClick={() => desktopInputRef.current?.click()} className="h-32 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 text-gray-400 transition-colors">
                   <ImageIcon className="mb-2" />
                   <span className="text-xs font-medium">Klik pilih gambar Desktop</span>
+                  <span className="text-[10px] text-gray-400 mt-1">1600 x 500 px</span>
                   <span className="text-[10px] text-gray-400 mt-1">Rasio memanjang (Horizontal)</span>
                 </div>
               )}
@@ -242,6 +243,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                 <div onClick={() => mobileInputRef.current?.click()} className="h-32 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 text-gray-400 transition-colors">
                   <ImageIcon className="mb-2" />
                   <span className="text-xs font-medium">Klik pilih gambar Mobile</span>
+                  <span className="text-[10px] text-gray-400 mt-1">1280 x 930 px</span>
                   <span className="text-[10px] text-gray-400 mt-1">Rasio meninggi (Vertical/Square)</span>
                 </div>
               )}
