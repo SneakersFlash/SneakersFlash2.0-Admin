@@ -1,16 +1,27 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
-
     unoptimized: true,
     remotePatterns: [
       {
+        protocol: "https",
+        hostname: "api.sneakersflash.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
         protocol: "http",
         hostname: "localhost",
-        // Opsional: batasi port jika perlu, tapi dikosongkan agar fleksibel
-        port: '3000', 
-        pathname: '/uploads/**',
+        port: "3000",
+        pathname: "/uploads/**",
       },
     ],
   },

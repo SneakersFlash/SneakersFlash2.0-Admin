@@ -246,11 +246,11 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           <div>
             <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center"><Package className="w-4 h-4 mr-2"/> Rincian Barang</h4>
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
-              {order.orderItems?.map((item: any) => (
+              {order.items?.map((item: any) => (
                 <div key={item.id} className="flex gap-3 items-center border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                   <div className="w-12 h-12 bg-white rounded border overflow-hidden flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {item.productImage ? <img src={item.productImage[0] || item.productImage} alt="" className="object-cover w-full h-full"/> : <Package className="w-6 h-6 m-3 text-gray-300"/>}
+                    {item.imageUrl ? <img src={item.imageUrl[0] || item.imageUrl} alt="" className="object-cover w-full h-full"/> : <Package className="w-6 h-6 m-3 text-gray-300"/>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
