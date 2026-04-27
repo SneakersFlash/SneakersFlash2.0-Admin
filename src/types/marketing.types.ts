@@ -11,6 +11,9 @@ export interface CampaignEvent {
   isActive: boolean;
   isTimer: boolean;
   sort: number;
+  metaTitle: string;
+  metaDescription: string;
+  ogImageUrl: string;
   _count?: {
     eventProducts: number;
   };
@@ -27,7 +30,10 @@ export interface CreateCampaignPayload {
   endAt: string;
   isActive?: boolean;
   isTimer?: boolean;
-  sort?: number
+  sort?: number;
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImageUrl?: string;
 }
 
 // --- TAMBAHKAN DI BAWAH FILE ---

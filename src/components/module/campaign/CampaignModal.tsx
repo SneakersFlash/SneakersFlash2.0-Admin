@@ -44,6 +44,9 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
     isActive: true,
     isTimer: true,
     sort: 0,
+    metaTitle: '',
+    metaDescription: '',
+    ogImageUrl: '',
   });
 
   // State terpisah untuk menampung file desktop dan mobile
@@ -63,6 +66,9 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
         isActive: initialData.isActive,
         isTimer: initialData.isTimer,
         sort: initialData.sort,
+        metaTitle: initialData.metaTitle || '',
+        metaDescription: initialData.metaDescription || '',
+        ogImageUrl: initialData.ogImageUrl || '',
       });
       setPreviews({ 
         desktop: initialData.bannerDesktopUrl || null, 
@@ -71,7 +77,8 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
     } else {
       setFormData({ 
         title: '', slug: '', bannerDesktopUrl: '', bannerMobileUrl: '', sort: 0,
-        startAt: '', endAt: '', styleConfig: { backgroundColor: '#ffffff' }, isActive: true , isTimer: true
+        startAt: '', endAt: '', styleConfig: { backgroundColor: '#ffffff' }, isActive: true , isTimer: true,
+          metaTitle: '', metaDescription: '', ogImageUrl: '',
       });
       setPreviews({ desktop: null, mobile: null });
     }
@@ -248,6 +255,44 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                 </div>
               )}
               <input ref={mobileInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('mobile', e)} />
+            </div>
+          </div>
+
+          {/* SEO Section */}
+          <div className="space-y-4 pt-4 border-t">
+            <p className="text-sm font-semibold text-gray-700">SEO & Meta Tag</p>
+            
+            <div className="space-y-2">
+              <Label>Meta Title</Label>
+              <Input 
+                name="metaTitle" 
+                value={formData.metaTitle || ''} 
+                onChange={handleChange} 
+                placeholder="Last Call Sneakers Under 1 Juta | Sneakers Flash" 
+              />
+              <p className="text-xs text-gray-400">Maks. 60 karakter. Kosongkan untuk pakai judul event.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Meta Description</Label>
+              <Input 
+                name="metaDescription" 
+                value={formData.metaDescription || ''} 
+                onChange={handleChange} 
+                placeholder="Last Call! Sneakers original harga di bawah 1 juta..." 
+              />
+              <p className="text-xs text-gray-400">Maks. 160 karakter. Tampil di hasil pencarian Google.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>OG Image URL (Opsional)</Label>
+              <Input 
+                name="ogImageUrl" 
+                value={formData.ogImageUrl || ''} 
+                onChange={handleChange} 
+                placeholder="https://..." 
+              />
+              <p className="text-xs text-gray-400">Gambar saat link dibagikan di WhatsApp/sosmed. Kosongkan untuk pakai banner.</p>
             </div>
           </div>
           
