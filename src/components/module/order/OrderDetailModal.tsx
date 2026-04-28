@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import OrdersService from '@/services/orders.service';
-import api from '@/lib/api'; // Pastikan import api axios kamu
+import OrdersService, { type TrackingResult } from '@/services/orders.service';
+import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/api';
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import type { Order, OrderStatus } from '@/types/order.types';
@@ -20,40 +20,11 @@ interface OrderDetailModalProps {
   onRefresh: () => void;
 }
 
-// Data Dummy Tracking (Sementara sebelum API Waybill Backend siap)
-const mosk = {
-  "trackingNumber": "JNT1234567890",
-  "courier": "J&T Express",
-  "service": "EZ",
-  "currentStatus": "OUT_FOR_DELIVERY",
-  "estimatedDelivery": new Date().toISOString(),
-  "history": [
-    {
-      "timestamp": new Date().toISOString(),
-      "status": "OUT_FOR_DELIVERY",
-      "description": "Paket sedang dibawa kurir menuju alamat penerima.",
-      "location": "Jakarta Selatan"
-    },
-    {
-      "timestamp": new Date(Date.now() - 86400000).toISOString(),
-      "status": "IN_TRANSIT",
-      "description": "Paket telah tiba di fasilitas penyortiran.",
-      "location": "Jakarta Pusat"
-    },
-    {
-      "timestamp": new Date(Date.now() - 172800000).toISOString(),
-      "status": "PICKED_UP",
-      "description": "Paket telah diambil oleh kurir dari pengirim.",
-      "location": "Gudang SneakersFlash"
-    }
-  ]
-};
-
 export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: OrderDetailModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [cancelReason, setCancelReason] = useState('');
-  const [trackingData, setTrackingData] = useState<any>(null); // State untuk menyimpan hasil lacak resi
+  const [trackingData, setTrackingData] = useState<TrackingResult | null>(null);
 
   useEffect(() => {
     if (order?.awbTrackingNumber) {
@@ -156,25 +127,24 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
   };
 
-  // 👇 FUNGSI BARU: LACAK PESANAN (TRACKING)
   const handleTrackOrder = async () => {
+    const awb = order.awb || order.awbTrackingNumber || order.trackingNumber || order.courier?.trackingNumber;
+    const courier = (order.courierName || order.courier?.name || '').toLowerCase();
+
+    if (!awb) return toast.error('Nomor resi belum tersedia untuk pesanan ini.');
+    if (!courier) return toast.error('Nama kurir tidak ditemukan.');
+
+    // JNE butuh 5 digit terakhir nomor HP penerima
+    const phone = order.address?.phone || order.user?.phone || '';
+
     try {
       setIsProcessing(true);
-      // NOTE: Jika backend kamu sudah punya endpoint tracking RajaOngkir/Komerce, ganti kode di bawah ini:
-      // const resi = order.awbTrackingNumber || order.trackingNumber;
-      // const courier = order.courierName;
-      // const { data } = await api.post('/logistics/waybill', { waybill: resi, courier });
-      // setTrackingData(data);
-      
-      // Simulasi Dummy (Ganti dengan request di atas jika API backend sudah siap)
-      setTimeout(() => {
-        setTrackingData(mosk);
-        toast.success('Berhasil memuat status pengiriman');
-        setIsProcessing(false);
-      }, 800);
-      
+      const result = await OrdersService.trackShipment(awb, courier, phone || undefined);
+      setTrackingData(result);
+      toast.success('Berhasil memuat status pengiriman');
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -308,7 +278,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
               <div className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-4 rounded-lg border gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Nomor Resi Pengiriman</p>
-                  <p className="font-bold text-lg font-mono tracking-wider text-gray-900">{order.awbTrackingNumber || order.trackingNumber || trackingNumber || '-'}</p>
+                  <p className="font-bold text-lg font-mono tracking-wider text-gray-900">{order.awb || order.awbTrackingNumber || order.trackingNumber || trackingNumber || '-'}</p>
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
@@ -330,25 +300,41 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 </div>
               </div>
 
-              {/* TAMPILAN TIMELINE TRACKING */}
-              {trackingData && trackingData.history && (
+              {/* TAMPILAN TIMELINE TRACKING (RajaOngkir) */}
+              {trackingData && trackingData.manifest && (
                 <div className="bg-white border rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
-                  <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center">
-                    <Truck className="w-4 h-4 mr-2" /> Riwayat Perjalanan Paket
-                  </h4>
-                  <div className="relative pl-6 border-l-2 border-indigo-100 space-y-6">
-                    {trackingData.history.map((track: any, idx: number) => (
+                  {/* Header: status ringkas */}
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-bold text-gray-900 flex items-center">
+                      <Truck className="w-4 h-4 mr-2" /> Riwayat Perjalanan Paket
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {trackingData.delivered && (
+                        <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Terkirim
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-500">
+                        {trackingData.summary.courier_name} · {trackingData.summary.service_code}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Timeline manifest */}
+                  <div className="relative pl-6 border-l-2 border-indigo-100 space-y-5">
+                    {trackingData.manifest.map((item, idx) => (
                       <div key={idx} className="relative">
-                        <div className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 border-white ${idx === 0 ? 'bg-indigo-600' : 'bg-gray-300'}`}></div>
-                        <div className="space-y-1">
-                          <p className={`text-sm font-bold ${idx === 0 ? 'text-indigo-900' : 'text-gray-700'}`}>{track.status}</p>
-                          <p className="text-sm text-gray-600 leading-relaxed">{track.description}</p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                            <span>{new Date(track.timestamp || track.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                            {track.location && (
+                        <div className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 border-white ${idx === 0 ? 'bg-indigo-600' : 'bg-gray-300'}`} />
+                        <div className="space-y-0.5">
+                          <p className={`text-sm font-semibold ${idx === 0 ? 'text-indigo-900' : 'text-gray-700'}`}>
+                            {item.manifest_description}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{item.manifest_date} {item.manifest_time}</span>
+                            {item.city_name && (
                               <>
-                                <span>•</span>
-                                <span className="font-medium text-gray-600">{track.location}</span>
+                                <span>·</span>
+                                <span className="font-medium text-gray-600">{item.city_name}</span>
                               </>
                             )}
                           </div>
@@ -356,6 +342,14 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                       </div>
                     ))}
                   </div>
+
+                  {/* POD Info jika sudah delivered */}
+                  {trackingData.delivery_status?.pod_receiver && (
+                    <div className="mt-4 pt-3 border-t border-dashed border-gray-200 text-xs text-gray-500">
+                      Diterima oleh <span className="font-semibold text-gray-700">{trackingData.delivery_status.pod_receiver}</span>
+                      {' · '}{trackingData.delivery_status.pod_date} {trackingData.delivery_status.pod_time}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

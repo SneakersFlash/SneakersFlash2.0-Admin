@@ -74,6 +74,15 @@ export default function OrdersPage() {
       });
       setOrders(res.data);
       setMeta(res.meta);
+      // Baca summary dari meta — tidak perlu hit API terpisah
+      if (res.meta.summary) {
+        setStats({
+          total:      res.meta.summary.total_all,
+          paid:       res.meta.summary.paid,
+          processing: res.meta.summary.processing,
+          shipped:    res.meta.summary.shipped,
+        });
+      }
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -81,31 +90,9 @@ export default function OrdersPage() {
     }
   }, [page, status, debouncedSearch]);
 
-  // Fetch Summary Statistics
-  const fetchStats = useCallback(async () => {
-    try {
-      // Panggil API secara paralel dengan limit 1 untuk mengambil meta.total tiap status
-      const [allRes, paidRes, procRes, shipRes] = await Promise.all([
-        OrdersService.getOrders({ limit: 1 }),
-        OrdersService.getOrders({ limit: 1, status: 'paid' }),
-        OrdersService.getOrders({ limit: 1, status: 'processing' }),
-        OrdersService.getOrders({ limit: 1, status: 'shipped' }),
-      ]);
-      setStats({
-        total: allRes.meta.total,
-        paid: paidRes.meta.total,
-        processing: procRes.meta.total,
-        shipped: shipRes.meta.total,
-      });
-    } catch (error) {
-      console.error('Gagal mengambil statistik:', error);
-    }
-  }, []);
-
   useEffect(() => {
     fetchOrders();
-    fetchStats(); // Panggil fetchStats saat halaman pertama kali dimuat
-  }, [fetchOrders, fetchStats]);
+  }, [fetchOrders]);
 
   const openDetailModal = async (order: Order) => {
     try {
@@ -117,10 +104,9 @@ export default function OrdersPage() {
     }
   };
 
-  // Fungsi ketika status diupdate (refresh tabel & refresh stats)
+  // Refresh tabel — stats terupdate otomatis karena dibaca dari meta.summary
   const handleRefresh = () => {
     fetchOrders();
-    fetchStats(); 
   };
 
   return (
