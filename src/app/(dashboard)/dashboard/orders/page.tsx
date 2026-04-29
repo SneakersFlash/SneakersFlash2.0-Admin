@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   ShoppingBag, Search, ChevronLeft, ChevronRight,
-  Eye, CalendarDays, User, Loader2, Package, Truck, CheckCircle2, Wallet
+  Eye, CalendarDays, User, Loader2, Package, Truck, CheckCircle2, Wallet,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/api';
-import OrdersService from '@/services/orders.service';
+import OrdersService, { type OrderAdminMeta } from '@/services/orders.service';
 import PageHeader from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
-import type { Order, OrderStatus, OrderMeta } from '@/types/order.types';
+import type { Order, OrderStatus } from '@/types/order.types';
 import OrderDetailModal from '@/components/module/order/OrderDetailModal';
 
 const STATUS_OPTIONS: { value: OrderStatus | 'ALL'; label: string }[] = [
@@ -35,7 +36,8 @@ const STATUS_OPTIONS: { value: OrderStatus | 'ALL'; label: string }[] = [
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [meta, setMeta] = useState<OrderMeta | null>(null);
+  // FIX: pakai OrderAdminMeta agar meta.lastPage tersedia (backend kirim lastPage, bukan totalPages)
+  const [meta, setMeta] = useState<OrderAdminMeta | null>(null);
   const [loading, setLoading] = useState(true);
 
   // --- Statistics State ---
@@ -50,6 +52,11 @@ export default function OrdersPage() {
   const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // --- Export State ---
+  const [exporting, setExporting]     = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo]     = useState('');
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -73,8 +80,8 @@ export default function OrdersPage() {
         search: debouncedSearch || undefined,
       });
       setOrders(res.data);
+      // FIX: backend kirim res.meta langsung dengan field yang benar (lastPage, dll)
       setMeta(res.meta);
-      // Baca summary dari meta — tidak perlu hit API terpisah
       if (res.meta.summary) {
         setStats({
           total:      res.meta.summary.total_all,
@@ -104,10 +111,26 @@ export default function OrdersPage() {
     }
   };
 
-  // Refresh tabel — stats terupdate otomatis karena dibaca dari meta.summary
-  const handleRefresh = () => {
-    fetchOrders();
+  const handleRefresh = () => fetchOrders();
+
+  // --- Export Handler ---
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await OrdersService.exportOrders({
+        status:   status !== 'ALL' ? status : undefined,
+        search:   debouncedSearch || undefined,
+        dateFrom: exportDateFrom || undefined,
+        dateTo:   exportDateTo   || undefined,
+      });
+      toast.success('File CSV berhasil diunduh!');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setExporting(false);
+    }
   };
+  
 
   return (
     <div className="space-y-6">
@@ -191,19 +214,65 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        {/* Search Bar Area */}
-        <div className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input 
-              placeholder="Cari ID Pesanan, Nama, atau Resi..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
-              className="pl-9 bg-gray-50 border-gray-200 focus-visible:ring-indigo-500" 
-            />
+        {/* Search Bar + Export Area */}
+        <div className="p-4 flex flex-col gap-3 bg-white">
+          {/* Row 1: Search + item count */}
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Cari ID Pesanan, Nama, atau Resi..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-gray-50 border-gray-200 focus-visible:ring-indigo-500"
+              />
+            </div>
+            <div className="text-sm text-gray-500 font-medium px-2 shrink-0">
+              Menampilkan <span className="text-gray-900 font-bold">{orders.length}</span> pesanan
+            </div>
           </div>
-          <div className="text-sm text-gray-500 font-medium px-2">
-            Menampilkan <span className="text-gray-900 font-bold">{orders.length}</span> pesanan
+
+          {/* Row 2: Export controls */}
+          <div className="flex flex-wrap gap-2 items-center border-t border-gray-100 pt-3">
+            <span className="text-xs font-medium text-gray-500 mr-1">Export CSV:</span>
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-gray-500 shrink-0">Dari</label>
+              <Input
+                type="date"
+                value={exportDateFrom}
+                onChange={(e) => setExportDateFrom(e.target.value)}
+                className="h-8 text-xs w-36 bg-gray-50 border-gray-200"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-gray-500 shrink-0">s/d</label>
+              <Input
+                type="date"
+                value={exportDateTo}
+                onChange={(e) => setExportDateTo(e.target.value)}
+                className="h-8 text-xs w-36 bg-gray-50 border-gray-200"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={exporting}
+              className="h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+            >
+              {exporting
+                ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Mengekspor...</>
+                : <><Download className="w-3.5 h-3.5 mr-1.5" /> Export{status !== 'ALL' ? ` (${status})` : ''}</>
+              }
+            </Button>
+            {(exportDateFrom || exportDateTo) && (
+              <button
+                onClick={() => { setExportDateFrom(''); setExportDateTo(''); }}
+                className="text-xs text-gray-400 hover:text-gray-600 underline"
+              >
+                Reset tanggal
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -263,9 +332,10 @@ export default function OrdersPage() {
         </div>
 
         {/* ── PAGINATION ─────────────────────────────────────────────────────── */}
-        {meta && meta.totalPages > 1 && (
+        {/* FIX: backend kirim lastPage, bukan totalPages */}
+        {meta && meta.lastPage > 1 && (
           <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <span className="text-sm text-gray-500">Halaman {meta.page} dari {meta.totalPages}</span>
+            <span className="text-sm text-gray-500">Halaman {meta.page} dari {meta.lastPage}</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={!meta.hasPrevPage}><ChevronLeft className="w-4 h-4 mr-1" /> Prev</Button>
               <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={!meta.hasNextPage}>Next <ChevronRight className="w-4 h-4 ml-1" /></Button>
