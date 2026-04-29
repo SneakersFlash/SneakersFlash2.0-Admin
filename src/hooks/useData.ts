@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/api';
 import ProductService from '@/services/products.service';
-import OrderService from '@/services/orders.service';
+import OrderService, { OrderAdminMeta } from '@/services/orders.service';
 import { VoucherService } from '@/services/other.service';
 import type { Product, ProductFilters } from '@/types/product.types';
 import type { Order, OrderQueryParams } from '@/types/order.types';
@@ -76,7 +76,7 @@ export function useProducts(filters?: ProductFilters): UseListState<Product> {
 
 export function useOrders(filters?: OrderQueryParams): UseListState<Order> {
   const [data, setData] = useState<Order[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
+  const [meta, setMeta] = useState<OrderAdminMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);

@@ -208,7 +208,7 @@ export default function DataTable<TData>({
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => onPageChange?.(pagination.page + 1)}
-                disabled={pagination.page >= pagination.totalPages || isLoading}
+                disabled={pagination.totalPages && pagination.page >= pagination.totalPages || isLoading}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
