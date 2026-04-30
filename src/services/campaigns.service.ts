@@ -21,7 +21,7 @@ const CampaignsService = {
     await api.delete(`/marketing/events/${id}`);
   },
 
-  async syncFromSheet(id: string | number, payload: { sheetUrl: string; sheetName?: string }): Promise<{status: string, message: string, warning?: string}> {
+  async syncFromSheet(id: string | number, payload: { sheetUrl: string; sheetName?: string, skuPrefix?: string }): Promise<{status: string, message: string, warning?: string}> {
     const { data } = await api.post(`/marketing/events/admin/${id}/sync-sheet`, payload);
     return data;
   },

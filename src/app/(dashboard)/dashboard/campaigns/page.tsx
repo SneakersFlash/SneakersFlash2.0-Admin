@@ -27,7 +27,8 @@ export default function CampaignsWrapper() {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [syncCampaignId, setSyncCampaignId] = useState<string | number | null>(null);
   const [sheetUrl, setSheetUrl] = useState('');
-  const [sheetName, setSheetName] = useState('Sheet1');
+  const [sheetName, setSheetName] = useState('');
+  const [skuPrefix, setSkuPrefix] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchCampaigns = async () => {
@@ -75,7 +76,7 @@ export default function CampaignsWrapper() {
 
     try {
       setIsSyncing(true);
-      const response = await CampaignsService.syncFromSheet(syncCampaignId, { sheetUrl, sheetName });
+      const response = await CampaignsService.syncFromSheet(syncCampaignId, { sheetUrl, sheetName, skuPrefix });
       
       toast.success(response.message);
       if (response.warning) {
@@ -84,8 +85,9 @@ export default function CampaignsWrapper() {
       
       setIsSyncModalOpen(false);
       setSheetUrl('');
-      setSheetName('Sheet1');
-      fetchCampaigns(); // Refresh data produk (count)
+      setSheetName('');
+      setSkuPrefix('')
+      fetchCampaigns();
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -249,7 +251,7 @@ export default function CampaignsWrapper() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Nama Sheet (Opsional)</label>
+                <label className="text-sm font-medium text-gray-700">Nama Sheet</label>
                 <input 
                   type="text" 
                   placeholder="Sheet1"
@@ -259,6 +261,19 @@ export default function CampaignsWrapper() {
                   disabled={isSyncing}
                 />
                 <p className="text-xs text-gray-500">Isi jika nama *tab* Sheet Anda bukan "Sheet1".</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">SKU Prefix</label>
+                <input 
+                  type="text" 
+                  placeholder="Sheet1"
+                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  value={skuPrefix}
+                  onChange={(e) => setSkuPrefix(e.target.value)}
+                  disabled={isSyncing}
+                />
+                <p className="text-xs text-gray-500">Isi untuk kebutuhan prefix SKU (LS-1292.....).</p>
               </div>
 
               <div className="pt-4 flex justify-end gap-2">

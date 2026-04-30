@@ -244,7 +244,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
         <div className="border-t pt-4 space-y-4">
           
           {/* PAID -> PROCESSING */}
-          {order.status === 'paid' && (
+          {order.status === 'paid' || order.status === 'processing' && (
             <div className="flex justify-end gap-2">
               <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleCancelOrder} disabled={isProcessing}>Batalkan</Button>
               <Button onClick={() => handleUpdateStatus('processing')} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700">Terima & Proses Pesanan</Button>
