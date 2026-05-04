@@ -54,6 +54,29 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat('id-ID').format(num);
 }
 
+/**
+ * Converts a Prisma Decimal (serialized as Decimal.js {s,e,d} object) or any
+ * numeric-ish value to a plain JS number. Safe to call on actual numbers too.
+ */
+export function toNum(val: unknown): number {
+  if (val == null) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') return parseFloat(val) || 0;
+  if (typeof val === 'object' && val !== null && Array.isArray((val as { d?: number[] }).d)) {
+    const { s = 1, e = 0, d = [0] } = val as { s: number; e: number; d: number[] };
+    if (!d.length || d[0] === 0) return 0;
+    // d[0] is unpadded; d[1..] are zero-padded to 7 digits (Decimal.js LOG_BASE)
+    const digits = String(d[0]) + d.slice(1).map((n) => String(n).padStart(7, '0')).join('');
+    const intLen = e + 1;
+    const numStr =
+      intLen >= digits.length
+        ? digits + '0'.repeat(intLen - digits.length)
+        : digits.slice(0, intLen) + '.' + digits.slice(intLen);
+    return s * (parseFloat(numStr) || 0);
+  }
+  return 0;
+}
+
 export function formatPercent(num: number, decimals = 1): string {
   return `${num.toFixed(decimals)}%`;
 }
