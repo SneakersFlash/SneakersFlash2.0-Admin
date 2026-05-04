@@ -1,27 +1,46 @@
-export type TransactionStatus = 
-  | 'settlement' // Berhasil/Lunas
-  | 'capture'    // Berhasil (Kartu Kredit)
-  | 'pending'    // Menunggu Pembayaran
-  | 'deny'       // Ditolak
-  | 'cancel'     // Dibatalkan
-  | 'expire'     // Kedaluwarsa
-  | 'failure'    // Gagal
-  | 'refund';    // Dikembalikan
+export type TransactionStatus =
+  | 'settlement'
+  | 'capture'
+  | 'pending'
+  | 'deny'
+  | 'cancel'
+  | 'expire'
+  | 'failure'
+  | 'refund';
 
 export interface PaymentLog {
-    id: string | number;
-    orderId: string | number;     // ID Pesanan internal
-    transactionId: string;        // ID Transaksi dari Midtrans
-    grossAmount: number;
-    paymentType: string;          // bank_transfer, gopay, qris, dll.
-    transactionStatus: TransactionStatus;
-    fraudStatus?: string;
-    createdAt: string;
-    updatedAt?: string;
-    order?: {
-        orderNumber: string;
-        user?: {
-        name: string;
-        }
-    }
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  orderStatus: string;
+  finalAmount: number;
+  paymentType: string;
+  transactionId: string;
+  transactionStatus: TransactionStatus;
+  grossAmount: number | null;
+  createdAt: string;
+}
+
+export interface PaymentLogMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaymentLogResponse {
+  data: PaymentLog[];
+  meta: PaymentLogMeta;
+}
+
+export interface GetPaymentLogsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  paymentType?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
