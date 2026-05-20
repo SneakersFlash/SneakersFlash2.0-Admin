@@ -114,6 +114,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: 'Banner Promo', href: '/dashboard/banners', icon: 'image-icon' },
       { title: 'Events', href: '/dashboard/campaigns', icon: 'megaphone' },
+      { title: 'Blog & Artikel', href: '/dashboard/blog', icon: 'newspaper' },
       { title: 'Promo & Voucher', href: '/dashboard/promo-campaigns', icon: 'ticket' },
     ]
   },
@@ -122,6 +123,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: 'Pengguna', href: '/dashboard/users', icon: 'users' },
       { title: 'Inventori', href: '/dashboard/inventory', icon: 'warehouse' },
+      { title: 'Cetak Label', href: '/dashboard/labels', icon: 'printer' },
       { title: 'Ginee Logs', href: '/dashboard/ginee-logs', icon: 'logs' },
       { title: 'Notifikasi', href: '/dashboard/notifications', icon: 'bell' },
     ]
