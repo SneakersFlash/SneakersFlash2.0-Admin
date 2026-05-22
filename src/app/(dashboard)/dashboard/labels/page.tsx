@@ -12,10 +12,15 @@ import { getErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 const SIZE_PRESETS = [
-  { label: '2 × 5 cm', width: 20, height: 50 },
-  { label: '3 × 5 cm', width: 30, height: 50 },
-  { label: '4 × 6 cm', width: 40, height: 60 },
+  { label: '5 × 2,5 cm', width: 50, height: 25 },
   { label: '5 × 3 cm', width: 50, height: 30 },
+  { label: '5 × 2 cm', width: 50, height: 20 },
+  { label: '10 × 5 cm', width: 100, height: 50 },
+];
+
+const ROTATE_OPTIONS = [
+  { label: 'Normal', value: 0 },
+  { label: 'Terbalik (180°)', value: 180 },
 ];
 
 export default function LabelsPage() {
@@ -25,9 +30,10 @@ export default function LabelsPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Map<string, LabelProduct>>(new Map());
 
-  const [width, setWidth] = useState(20);
-  const [height, setHeight] = useState(50);
+  const [width, setWidth] = useState(50);
+  const [height, setHeight] = useState(25);
   const [copies, setCopies] = useState(1);
+  const [rotate, setRotate] = useState(0);
   const [isPrinting, setIsPrinting] = useState(false);
 
   const fetchProducts = useCallback(async () => {
@@ -92,6 +98,7 @@ export default function LabelsPage() {
         width,
         height,
         copies,
+        rotate,
       });
       openInWindow(win, blob);
       toast.success(
@@ -112,6 +119,7 @@ export default function LabelsPage() {
         width,
         height,
         copies,
+        rotate,
       });
       openInWindow(win, blob);
     } catch (error) {
@@ -197,9 +205,30 @@ export default function LabelsPage() {
               </div>
             </div>
             <p className="text-xs text-gray-500">
-              Label potrait (tinggi &gt; lebar) otomatis memutar konten 90&deg;
-              agar barcode memanjang &amp; mudah dipindai.
+              Isi ukuran = ukuran label fisik (ukur dengan penggaris). Kalau
+              hasil cetak terbalik, pilih Rotasi &quot;Terbalik&quot;.
             </p>
+
+            <div className="space-y-2 pt-1">
+              <p className="text-sm font-medium text-gray-700">Rotasi Konten</p>
+              <div className="flex flex-wrap gap-2">
+                {ROTATE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRotate(opt.value)}
+                    className={cn(
+                      'rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
+                      rotate === opt.value
+                        ? 'border-gray-900 bg-gray-900 text-white'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-400',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col items-stretch gap-2 lg:items-end">

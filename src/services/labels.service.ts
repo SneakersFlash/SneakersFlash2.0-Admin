@@ -14,6 +14,7 @@ export interface LabelSize {
   width: number;
   height: number;
   copies: number;
+  rotate: number; // 0 | 90 | 180 | 270 derajat
 }
 
 // Endpoint label mengembalikan PDF (blob). Kalau error, body error juga
