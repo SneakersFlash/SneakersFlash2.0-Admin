@@ -13,7 +13,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading2, Heading3, List, ListOrdered, Quote,
   Link2, Image as ImageIcon, AlignLeft, AlignCenter, AlignRight,
-  Undo2, Redo2, RemoveFormatting,
+  Undo2, Redo2, RemoveFormatting, Baseline, Eraser,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +28,10 @@ declare module '@tiptap/core' {
     fontSize: {
       setFontSize: (size: string) => ReturnType;
       unsetFontSize: () => ReturnType;
+    };
+    color: {
+      setColor: (color: string) => ReturnType;
+      unsetColor: () => ReturnType;
     };
   }
 }
@@ -71,7 +75,48 @@ const FontSize = Extension.create({
   },
 });
 
-const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '30px'];
+const FONT_SIZES = ['8px', '10px', '12px', '14px', '16px', '18px', '20px', '24px', '30px'];
+
+// ─── Extension warna font ──────────────────────────────────────────────────────
+const Color = Extension.create({
+  name: 'color',
+  addOptions() {
+    return { types: ['textStyle'] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          color: {
+            default: null,
+            parseHTML: (element) =>
+              element.style.color?.replace(/["']/g, '') || null,
+            renderHTML: (attributes) =>
+              attributes.color ? { style: `color: ${attributes.color}` } : {},
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setColor:
+        (color: string) =>
+        ({ chain }) =>
+          chain().setMark('textStyle', { color }).run(),
+      unsetColor:
+        () =>
+        ({ chain }) =>
+          chain()
+            .setMark('textStyle', { color: null })
+            .removeEmptyTextStyle()
+            .run(),
+    };
+  },
+});
+
+const DEFAULT_TEXT_COLOR = '#1f2937';
 
 function ToolbarButton({
   onClick, active, disabled, title, children,
@@ -136,6 +181,38 @@ function FontSizeSelect({ editor }: { editor: Editor }) {
   );
 }
 
+function ColorPicker({ editor }: { editor: Editor }) {
+  const current = (editor.getAttributes('textStyle').color as string) || '';
+
+  return (
+    <>
+      <label
+        title="Warna Font"
+        className="relative inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded text-gray-600 transition-colors hover:bg-gray-200"
+      >
+        <Baseline className="h-4 w-4" />
+        <span
+          className="absolute bottom-1 left-1/2 h-1 w-4 -translate-x-1/2 rounded-sm"
+          style={{ backgroundColor: current || DEFAULT_TEXT_COLOR }}
+        />
+        <input
+          type="color"
+          value={current || DEFAULT_TEXT_COLOR}
+          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          className="absolute inset-0 cursor-pointer opacity-0"
+        />
+      </label>
+      <ToolbarButton
+        title="Reset Warna Font"
+        disabled={!current}
+        onClick={() => editor.chain().focus().unsetColor().run()}
+      >
+        <Eraser className="h-4 w-4" />
+      </ToolbarButton>
+    </>
+  );
+}
+
 function Toolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null;
 
@@ -196,6 +273,10 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       <Divider />
 
       <FontSizeSelect editor={editor} />
+
+      <Divider />
+
+      <ColorPicker editor={editor} />
 
       <Divider />
 
@@ -317,6 +398,7 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TextStyle,
       FontSize,
+      Color,
       Image.configure({ inline: false, allowBase64: true }),
     ],
     content: value || '',
