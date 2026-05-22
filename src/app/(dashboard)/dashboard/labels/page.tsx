@@ -12,10 +12,10 @@ import { getErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 const SIZE_PRESETS = [
-  { label: '5 × 2 cm', width: 50, height: 20 },
+  { label: '2 × 5 cm', width: 20, height: 50 },
+  { label: '3 × 5 cm', width: 30, height: 50 },
+  { label: '4 × 6 cm', width: 40, height: 60 },
   { label: '5 × 3 cm', width: 50, height: 30 },
-  { label: '5 × 4 cm', width: 50, height: 40 },
-  { label: '3,2 × 2,5 cm', width: 32, height: 25 },
 ];
 
 export default function LabelsPage() {
@@ -25,8 +25,8 @@ export default function LabelsPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Map<string, LabelProduct>>(new Map());
 
-  const [width, setWidth] = useState(50);
-  const [height, setHeight] = useState(20);
+  const [width, setWidth] = useState(20);
+  const [height, setHeight] = useState(50);
   const [copies, setCopies] = useState(1);
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -196,6 +196,10 @@ export default function LabelsPage() {
                 />
               </div>
             </div>
+            <p className="text-xs text-gray-500">
+              Label potrait (tinggi &gt; lebar) otomatis memutar konten 90&deg;
+              agar barcode memanjang &amp; mudah dipindai.
+            </p>
           </div>
 
           <div className="flex flex-col items-stretch gap-2 lg:items-end">
