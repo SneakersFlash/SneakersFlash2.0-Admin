@@ -2,10 +2,12 @@
 
 import { useEffect } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
+import TextStyle from '@tiptap/extension-text-style';
 import Image from '@tiptap/extension-image';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
@@ -19,6 +21,57 @@ interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
 }
+
+// ─── Extension ukuran font (Tiptap v2 belum punya yang resmi) ──────────────────
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    fontSize: {
+      setFontSize: (size: string) => ReturnType;
+      unsetFontSize: () => ReturnType;
+    };
+  }
+}
+
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addOptions() {
+    return { types: ['textStyle'] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) =>
+              attributes.fontSize
+                ? { style: `font-size: ${attributes.fontSize}` }
+                : {},
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (size: string) =>
+        ({ chain }) =>
+          chain().setMark('textStyle', { fontSize: size }).run(),
+      unsetFontSize:
+        () =>
+        ({ chain }) =>
+          chain()
+            .setMark('textStyle', { fontSize: null })
+            .removeEmptyTextStyle()
+            .run(),
+    };
+  },
+});
+
+const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '30px'];
 
 function ToolbarButton({
   onClick, active, disabled, title, children,
@@ -50,6 +103,37 @@ function ToolbarButton({
 
 function Divider() {
   return <span className="mx-0.5 h-5 w-px bg-gray-200" />;
+}
+
+function FontSizeSelect({ editor }: { editor: Editor }) {
+  const current = (editor.getAttributes('textStyle').fontSize as string) || '';
+  const options =
+    current && !FONT_SIZES.includes(current)
+      ? [current, ...FONT_SIZES]
+      : FONT_SIZES;
+
+  return (
+    <select
+      title="Ukuran Font"
+      value={current}
+      onChange={(e) => {
+        const size = e.target.value;
+        if (size) {
+          editor.chain().focus().setFontSize(size).run();
+        } else {
+          editor.chain().focus().unsetFontSize().run();
+        }
+      }}
+      className="h-8 cursor-pointer rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-700 outline-none hover:bg-gray-100 focus:ring-1 focus:ring-gray-300"
+    >
+      <option value="">Normal</option>
+      {options.map((size) => (
+        <option key={size} value={size}>
+          {size.replace('px', '')}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 function Toolbar({ editor }: { editor: Editor | null }) {
@@ -108,6 +192,10 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       >
         <Strikethrough className="h-4 w-4" />
       </ToolbarButton>
+
+      <Divider />
+
+      <FontSizeSelect editor={editor} />
 
       <Divider />
 
@@ -227,6 +315,8 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
       }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextStyle,
+      FontSize,
       Image.configure({ inline: false, allowBase64: true }),
     ],
     content: value || '',
