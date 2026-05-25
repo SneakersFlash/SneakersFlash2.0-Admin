@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { 
+import {
   Plus, Search, MoreHorizontal, Pencil, Trash2,
-  ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw, 
-  FileSpreadsheet, CloudUpload, CloudDownload, Zap
+  ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw,
+  FileSpreadsheet, CloudUpload, CloudDownload, Zap, Link2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api'; 
@@ -65,6 +65,21 @@ export default function ProductsPage() {
   const [syncAllOpen, setSyncAllOpen]   = useState(false);
   const [dryRun, setDryRun]             = useState(true);
   const [syncingAll, setSyncingAll]     = useState(false);
+
+  // ── Ginee Map by SKU state ───────────────────────────────────────────────────
+  const [mapBySkuOpen, setMapBySkuOpen]         = useState(false);
+  const [mapDryRun, setMapDryRun]               = useState(true);
+  const [mapCaseInsensitive, setMapCaseInsensitive] = useState(false);
+  const [mappingBySku, setMappingBySku]         = useState(false);
+  const [mapResult, setMapResult]               = useState<{
+    pagesFetched: number;
+    gineeVariantsScanned: number;
+    matched: number;
+    alreadyMapped: number;
+    unmatched: number;
+    productsUpdated: number;
+    sampleUnmatchedSkus: string[];
+  } | null>(null);
 
   // ── Ginee per-product sync state ─────────────────────────────────────────────
   // Tracks which productId is currently being synced (push or pull)
@@ -164,6 +179,46 @@ export default function ProductsPage() {
     }
   };
 
+  // ── Ginee: Map by SKU (backfill mapping local ↔ Ginee) ───────────────────────
+  const handleMapBySku = async () => {
+    setMappingBySku(true);
+    setMapResult(null);
+    const toastId = toast.loading(
+      mapDryRun
+        ? 'Preview matching SKU (dry run)... ini bisa beberapa menit.'
+        : 'Mapping local variants ↔ Ginee by SKU... ini bisa beberapa menit.',
+    );
+    try {
+      const response = await api.post('/ginee/sync/map-by-sku', {
+        dryRun: mapDryRun,
+        caseInsensitive: mapCaseInsensitive,
+      });
+
+      setMapResult({
+        pagesFetched: response.data.pagesFetched ?? 0,
+        gineeVariantsScanned: response.data.gineeVariantsScanned ?? 0,
+        matched: response.data.matched ?? 0,
+        alreadyMapped: response.data.alreadyMapped ?? 0,
+        unmatched: response.data.unmatched ?? 0,
+        productsUpdated: response.data.productsUpdated ?? 0,
+        sampleUnmatchedSkus: response.data.sampleUnmatchedSkus ?? [],
+      });
+
+      toast.success(
+        mapDryRun
+          ? `Dry run selesai: ${response.data.matched ?? 0} match akan di-update`
+          : `Selesai: ${response.data.matched ?? 0} variant ter-mapping, ${response.data.productsUpdated ?? 0} produk diupdate`,
+        { id: toastId, duration: 6000 },
+      );
+
+      if (!mapDryRun) fetchProducts();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal map-by-sku', { id: toastId });
+    } finally {
+      setMappingBySku(false);
+    }
+  };
+
   // ── Ginee: Pull single product (Ginee → Local) ────────────────────────────────
   const handlePullFromGinee = async (product: Product) => {
     if (!product.gineeProductId) {
@@ -251,6 +306,17 @@ export default function ProductsPage() {
           >
             <Zap className="mr-2 h-4 w-4" />
             Sync Ginee
+          </Button>
+
+          {/* Ginee Map by SKU — one-shot backfill */}
+          <Button
+            variant="outline"
+            onClick={() => { setMapResult(null); setMapBySkuOpen(true); }}
+            disabled={loading}
+            className="border-purple-500 text-purple-600 hover:bg-purple-50"
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            Map by SKU
           </Button>
 
           {/* Add Product */}
@@ -563,6 +629,140 @@ export default function ProductsPage() {
                 : dryRun
                   ? <><Search className="mr-2 h-4 w-4" /> Jalankan Dry Run</>
                   : <><Zap className="mr-2 h-4 w-4" /> Sync Sekarang</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MAP BY SKU DIALOG ────────────────────────────────────────────────────── */}
+      <Dialog
+        open={mapBySkuOpen}
+        onOpenChange={(open) => {
+          if (mappingBySku) return; // jangan tutup saat sedang proses
+          setMapBySkuOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-purple-500" />
+              Map Local Variants ↔ Ginee by SKU
+            </DialogTitle>
+            <DialogDescription>
+              Backfill <code>gineeProductId</code> dan <code>gineeSkuId</code> untuk variant yang sudah ada di
+              local DB dengan mencocokkan SKU ke produk Ginee. Tidak membuat record baru, hanya UPDATE existing.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Result panel (kalau ada hasil) */}
+          {mapResult && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm space-y-2">
+              <div className="font-semibold text-emerald-900">
+                {mapDryRun ? '📋 Preview Hasil' : '✅ Mapping Selesai'}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-emerald-800">
+                <div>Pages fetched:</div>
+                <div className="font-medium text-right">{mapResult.pagesFetched}</div>
+                <div>Ginee variants scanned:</div>
+                <div className="font-medium text-right">{mapResult.gineeVariantsScanned}</div>
+                <div>{mapDryRun ? 'Akan di-update:' : 'Matched & updated:'}</div>
+                <div className="font-medium text-right text-emerald-900">{mapResult.matched}</div>
+                <div>Sudah ter-mapping sebelumnya:</div>
+                <div className="font-medium text-right">{mapResult.alreadyMapped}</div>
+                <div>Tidak ada SKU lokal cocok:</div>
+                <div className="font-medium text-right text-amber-700">{mapResult.unmatched}</div>
+                <div>Produk lokal yang diupdate:</div>
+                <div className="font-medium text-right">{mapResult.productsUpdated}</div>
+              </div>
+
+              {mapResult.sampleUnmatchedSkus.length > 0 && (
+                <div className="pt-2 mt-2 border-t border-emerald-200">
+                  <div className="text-xs text-amber-700 mb-1">
+                    Sample SKU Ginee yang tidak ketemu di lokal (max 20):
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {mapResult.sampleUnmatchedSkus.map((sku) => (
+                      <code key={sku} className="px-1.5 py-0.5 rounded bg-white border text-[10px] text-slate-700">
+                        {sku}
+                      </code>
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-2">
+                    Kalau banyak yang tidak match, coba aktifkan <strong>Case-insensitive</strong> lalu jalankan ulang.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Options panel */}
+          <div className="space-y-3 py-2">
+            {/* Dry run */}
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-slate-50">
+              <div className="space-y-0.5 pr-4">
+                <Label htmlFor="map-dry-run" className="text-sm font-medium">
+                  Dry Run (Preview Only)
+                </Label>
+                <p className="text-xs text-slate-500">
+                  Hanya hitung berapa SKU yang akan match — tidak update DB. Sangat disarankan untuk pertama kali.
+                </p>
+              </div>
+              <Switch
+                id="map-dry-run"
+                checked={mapDryRun}
+                onCheckedChange={setMapDryRun}
+                disabled={mappingBySku}
+              />
+            </div>
+
+            {/* Case insensitive */}
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-slate-50">
+              <div className="space-y-0.5 pr-4">
+                <Label htmlFor="map-ci" className="text-sm font-medium">
+                  Case-insensitive Match
+                </Label>
+                <p className="text-xs text-slate-500">
+                  Aktifkan kalau SKU di lokal &amp; Ginee bedanya cuma huruf besar/kecil (mis. <code>abc-001</code> vs <code>ABC-001</code>).
+                </p>
+              </div>
+              <Switch
+                id="map-ci"
+                checked={mapCaseInsensitive}
+                onCheckedChange={setMapCaseInsensitive}
+                disabled={mappingBySku}
+              />
+            </div>
+
+            {mappingBySku && (
+              <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+                <RefreshCw className="h-4 w-4 animate-spin shrink-0 mt-0.5" />
+                <span>
+                  Sedang memproses... endpoint blocking, mungkin butuh beberapa menit tergantung jumlah produk di Ginee.
+                  Jangan tutup tab ini.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setMapBySkuOpen(false)}
+              disabled={mappingBySku}
+            >
+              Tutup
+            </Button>
+            <Button
+              onClick={handleMapBySku}
+              disabled={mappingBySku}
+              className={mapDryRun ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'}
+            >
+              {mappingBySku
+                ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                : mapDryRun
+                  ? <><Search className="mr-2 h-4 w-4" /> Preview Match</>
+                  : <><Link2 className="mr-2 h-4 w-4" /> Jalankan Mapping</>
               }
             </Button>
           </DialogFooter>
