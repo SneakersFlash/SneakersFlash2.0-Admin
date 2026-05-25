@@ -73,11 +73,13 @@ export default function ProductsPage() {
   const [mappingBySku, setMappingBySku]         = useState(false);
   const [mapResult, setMapResult]               = useState<{
     pagesFetched: number;
+    totalPagesReported: number;
     gineeVariantsScanned: number;
     matched: number;
     alreadyMapped: number;
     unmatched: number;
     productsUpdated: number;
+    rateLimitSkips: number;
     sampleUnmatchedSkus: string[];
   } | null>(null);
 
@@ -196,11 +198,13 @@ export default function ProductsPage() {
 
       setMapResult({
         pagesFetched: response.data.pagesFetched ?? 0,
+        totalPagesReported: response.data.totalPagesReported ?? 0,
         gineeVariantsScanned: response.data.gineeVariantsScanned ?? 0,
         matched: response.data.matched ?? 0,
         alreadyMapped: response.data.alreadyMapped ?? 0,
         unmatched: response.data.unmatched ?? 0,
         productsUpdated: response.data.productsUpdated ?? 0,
+        rateLimitSkips: response.data.rateLimitSkips ?? 0,
         sampleUnmatchedSkus: response.data.sampleUnmatchedSkus ?? [],
       });
 
@@ -663,7 +667,12 @@ export default function ProductsPage() {
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-emerald-800">
                 <div>Pages fetched:</div>
-                <div className="font-medium text-right">{mapResult.pagesFetched}</div>
+                <div className="font-medium text-right">
+                  {mapResult.pagesFetched}
+                  {mapResult.totalPagesReported > 0 && (
+                    <span className="text-emerald-600"> / {mapResult.totalPagesReported}</span>
+                  )}
+                </div>
                 <div>Ginee variants scanned:</div>
                 <div className="font-medium text-right">{mapResult.gineeVariantsScanned}</div>
                 <div>{mapDryRun ? 'Akan di-update:' : 'Matched & updated:'}</div>
@@ -674,6 +683,12 @@ export default function ProductsPage() {
                 <div className="font-medium text-right text-amber-700">{mapResult.unmatched}</div>
                 <div>Produk lokal yang diupdate:</div>
                 <div className="font-medium text-right">{mapResult.productsUpdated}</div>
+                {mapResult.rateLimitSkips > 0 && (
+                  <>
+                    <div>Skip karena Ginee rate-limit:</div>
+                    <div className="font-medium text-right text-red-600">{mapResult.rateLimitSkips}</div>
+                  </>
+                )}
               </div>
 
               {mapResult.sampleUnmatchedSkus.length > 0 && (
