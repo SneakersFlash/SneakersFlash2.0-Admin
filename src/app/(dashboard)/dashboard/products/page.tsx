@@ -182,42 +182,89 @@ export default function ProductsPage() {
   };
 
   // ── Ginee: Map by SKU (backfill mapping local ↔ Ginee) ───────────────────────
+  // Endpoint sekarang ENQUEUE ke Bull queue, lalu admin poll status setiap 3 detik.
   const handleMapBySku = async () => {
     setMappingBySku(true);
     setMapResult(null);
-    const toastId = toast.loading(
-      mapDryRun
-        ? 'Preview matching SKU (dry run)... ini bisa beberapa menit.'
-        : 'Mapping local variants ↔ Ginee by SKU... ini bisa beberapa menit.',
-    );
+    const toastId = toast.loading('Queuing job...');
+
     try {
-      const response = await api.post('/ginee/sync/map-by-sku', {
+      const enqueueResp = await api.post('/ginee/sync/map-by-sku', {
         dryRun: mapDryRun,
         caseInsensitive: mapCaseInsensitive,
       });
 
-      setMapResult({
-        pagesFetched: response.data.pagesFetched ?? 0,
-        totalPagesReported: response.data.totalPagesReported ?? 0,
-        gineeVariantsScanned: response.data.gineeVariantsScanned ?? 0,
-        matched: response.data.matched ?? 0,
-        alreadyMapped: response.data.alreadyMapped ?? 0,
-        unmatched: response.data.unmatched ?? 0,
-        productsUpdated: response.data.productsUpdated ?? 0,
-        rateLimitSkips: response.data.rateLimitSkips ?? 0,
-        sampleUnmatchedSkus: response.data.sampleUnmatchedSkus ?? [],
-      });
+      if (!enqueueResp.data.queued) {
+        toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
+        setMappingBySku(false);
+        return;
+      }
 
-      toast.success(
+      toast.loading(
         mapDryRun
-          ? `Dry run selesai: ${response.data.matched ?? 0} match akan di-update`
-          : `Selesai: ${response.data.matched ?? 0} variant ter-mapping, ${response.data.productsUpdated ?? 0} produk diupdate`,
-        { id: toastId, duration: 6000 },
+          ? 'Dry-run berjalan di background. Polling status…'
+          : 'Mapping berjalan di background. Polling status…',
+        { id: toastId },
       );
 
-      if (!mapDryRun) fetchProducts();
+      // Poll status setiap 3 detik sampai selesai (atau timeout 15 menit)
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 15 * 60 * 1000;
+      const POLL_INTERVAL_MS = 3000;
+
+      while (true) {
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          toast.error('Timeout 15 menit — cek log server / queue dashboard.', { id: toastId });
+          break;
+        }
+
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+        const statusResp = await api.get('/ginee/sync/map-by-sku/status');
+        const { state, lastResult, lastError } = statusResp.data;
+
+        if (state === 'running' || state === 'waiting') {
+          toast.loading(`Status: ${state}…`, { id: toastId });
+          continue;
+        }
+
+        if (state === 'completed' && lastResult) {
+          setMapResult({
+            pagesFetched: lastResult.pagesFetched ?? 0,
+            totalPagesReported: lastResult.totalPagesReported ?? 0,
+            gineeVariantsScanned: lastResult.gineeVariantsScanned ?? 0,
+            matched: lastResult.matched ?? 0,
+            alreadyMapped: lastResult.alreadyMapped ?? 0,
+            unmatched: lastResult.unmatched ?? 0,
+            productsUpdated: lastResult.productsUpdated ?? 0,
+            rateLimitSkips: lastResult.rateLimitSkips ?? 0,
+            sampleUnmatchedSkus: lastResult.sampleUnmatchedSkus ?? [],
+          });
+
+          toast.success(
+            mapDryRun
+              ? `Dry run selesai: ${lastResult.matched ?? 0} match akan di-update`
+              : `Selesai: ${lastResult.matched ?? 0} variant ter-mapping, ${lastResult.productsUpdated ?? 0} produk diupdate`,
+            { id: toastId, duration: 8000 },
+          );
+
+          if (!mapDryRun) fetchProducts();
+          break;
+        }
+
+        if (state === 'failed') {
+          toast.error(`Job gagal: ${lastError ?? 'unknown error'}`, { id: toastId, duration: 10000 });
+          break;
+        }
+
+        // state === 'idle' — job belum terlihat di queue (mungkin sudah di-clean), berhenti
+        toast.warning('Status idle — job mungkin sudah selesai sebelumnya. Klik ulang kalau perlu.', {
+          id: toastId,
+        });
+        break;
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Gagal map-by-sku', { id: toastId });
+      toast.error(error.response?.data?.message || 'Gagal queue map-by-sku', { id: toastId });
     } finally {
       setMappingBySku(false);
     }
