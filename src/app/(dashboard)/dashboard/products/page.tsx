@@ -6,8 +6,33 @@ import Link from 'next/link';
 import {
   Plus, Search, MoreHorizontal, Pencil, Trash2,
   ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw,
-  FileSpreadsheet, CloudUpload, CloudDownload, Zap, Link2
+  FileSpreadsheet, CloudUpload, CloudDownload, Zap, Link2, Warehouse
 } from 'lucide-react';
+
+// Ginee warehouse IDs — extracted from Ginee dashboard one-time.
+// Update jika ada warehouse baru / dihapus di Ginee.
+const GINEE_WAREHOUSE_IDS = [
+  'WW614C57B6E21B840001B4A467', // KCG01 — KCG ALL
+  'WW69A102944CEDFD0001C67A65', // BG02 — BG EXHIBITION
+  'WW69954C23CFF47E0001C8B127', // SF02 — SF EXHIBITION
+  'WW69A11C3846E0FB0001B52A07', // FD02 — FOLDE EXHIBITION
+  'WW69EB1A058701D40001AABB36', // PM01 — PUMA SF
+  'WW69EB18A5C9E77C00019158F6', // DIA01 — DIADORA SF
+  'WW69EB17F24CEDFD000101F734', // CON01 — CONVERSE SF
+  'WW69EB16B68701D40001AABA74', // HK01 — HOKA SF
+  'WW69E981F05255EE0001DF5ABB', // NR01 — NOT READY SF
+  'WW69E981D54CEDFD0001FF18F1', // SBK01 — SBK ALL
+  'WW69E981C4BC818C0001ABE413', // SDL01 — SDL ALL
+  'WW69E98195230F3A0001250B60', // VAN01 — VANS SF
+  'WW69E98168C9E77C0001907A49', // SKE01 — SKECHERS SF
+  'WW69E98134BC818C0001ABE3CD', // REE01 — REEBOK SF
+  'WW69E89A7B8701D40001A8F9A4', // NB01 — NEW BALANCE SF
+  'WW69E97FDCC9E77C0001907953', // AD01 — ADIDAS SF
+  'WW69E980215255EE0001DF59F1', // ASC01 — ASICS SF
+  'WW69E9803A230F3A0001250AC6', // NIK01 — NIKE SF
+  'WW693A7865CFF47E00015F7B5B', // FD01 — FOLDE
+  'WW693792AD744C1500017CD7B6', // BG01 — BETTER GOODS
+];
 import { toast } from 'sonner';
 import api from '@/lib/api'; 
 import { Button } from '@/components/ui/button';
@@ -81,6 +106,20 @@ export default function ProductsPage() {
     productsUpdated: number;
     rateLimitSkips: number;
     sampleUnmatchedSkus: string[];
+  } | null>(null);
+
+  // ── Ginee Map Warehouse state ────────────────────────────────────────────────
+  const [mapWhOpen, setMapWhOpen]               = useState(false);
+  const [mapWhDryRun, setMapWhDryRun]           = useState(true);
+  const [mappingWh, setMappingWh]               = useState(false);
+  const [mapWhResult, setMapWhResult]           = useState<{
+    warehousesScanned: number;
+    pagesFetched: number;
+    inventoryRowsScanned: number;
+    matchedVariants: number;
+    updatedVariants: number;
+    multiWarehouseVariants: number;
+    sampleUnmappedWarehouseIds: string[];
   } | null>(null);
 
   // ── Ginee per-product sync state ─────────────────────────────────────────────
@@ -270,6 +309,91 @@ export default function ProductsPage() {
     }
   };
 
+  // ── Ginee: Map Warehouse IDs per variant (one-shot, ~30-60 min) ──────────────
+  const handleMapWarehouses = async () => {
+    setMappingWh(true);
+    setMapWhResult(null);
+    const toastId = toast.loading('Queuing map-warehouses job...');
+
+    try {
+      const enqueueResp = await api.post('/ginee/sync/map-warehouses', {
+        warehouseIds: GINEE_WAREHOUSE_IDS,
+        dryRun: mapWhDryRun,
+      });
+
+      if (!enqueueResp.data.queued) {
+        toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
+        setMappingWh(false);
+        return;
+      }
+
+      toast.loading(
+        mapWhDryRun
+          ? 'Dry-run map-warehouses berjalan di background. Polling status…'
+          : 'Map-warehouses berjalan di background (~30-60 menit). Polling status…',
+        { id: toastId },
+      );
+
+      // Poll status — timeout 90 menit (cukup untuk 20 warehouse × N page)
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 90 * 60 * 1000;
+      const POLL_INTERVAL_MS = 5000;
+
+      while (true) {
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          toast.error('Timeout 90 menit — cek log server / queue dashboard.', { id: toastId });
+          break;
+        }
+
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+        const statusResp = await api.get('/ginee/sync/map-warehouses/status');
+        const { state, lastResult, lastError } = statusResp.data;
+
+        if (state === 'running' || state === 'waiting') {
+          toast.loading(`Status: ${state}…`, { id: toastId });
+          continue;
+        }
+
+        if (state === 'completed' && lastResult) {
+          setMapWhResult({
+            warehousesScanned: lastResult.warehousesScanned ?? 0,
+            pagesFetched: lastResult.pagesFetched ?? 0,
+            inventoryRowsScanned: lastResult.inventoryRowsScanned ?? 0,
+            matchedVariants: lastResult.matchedVariants ?? 0,
+            updatedVariants: lastResult.updatedVariants ?? 0,
+            multiWarehouseVariants: lastResult.multiWarehouseVariants ?? 0,
+            sampleUnmappedWarehouseIds: lastResult.sampleUnmappedWarehouseIds ?? [],
+          });
+
+          toast.success(
+            mapWhDryRun
+              ? `Dry run selesai: ${lastResult.matchedVariants ?? 0} variants akan di-update`
+              : `Selesai: ${lastResult.updatedVariants ?? 0} variants dapat warehouseId, ${lastResult.multiWarehouseVariants ?? 0} di multi-warehouse`,
+            { id: toastId, duration: 8000 },
+          );
+
+          if (!mapWhDryRun) fetchProducts();
+          break;
+        }
+
+        if (state === 'failed') {
+          toast.error(`Job gagal: ${lastError ?? 'unknown error'}`, { id: toastId, duration: 10000 });
+          break;
+        }
+
+        toast.warning('Status idle — job mungkin sudah selesai sebelumnya. Klik ulang kalau perlu.', {
+          id: toastId,
+        });
+        break;
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal queue map-warehouses', { id: toastId });
+    } finally {
+      setMappingWh(false);
+    }
+  };
+
   // ── Ginee: Pull single product (Ginee → Local) ────────────────────────────────
   const handlePullFromGinee = async (product: Product) => {
     if (!product.gineeProductId) {
@@ -368,6 +492,17 @@ export default function ProductsPage() {
           >
             <Link2 className="mr-2 h-4 w-4" />
             Map by SKU
+          </Button>
+
+          {/* Ginee Map Warehouse — one-shot warehouse mapping */}
+          <Button
+            variant="outline"
+            onClick={() => { setMapWhResult(null); setMapWhOpen(true); }}
+            disabled={loading}
+            className="border-cyan-500 text-cyan-600 hover:bg-cyan-50"
+          >
+            <Warehouse className="mr-2 h-4 w-4" />
+            Map Warehouse
           </Button>
 
           {/* Add Product */}
@@ -825,6 +960,130 @@ export default function ProductsPage() {
                 : mapDryRun
                   ? <><Search className="mr-2 h-4 w-4" /> Preview Match</>
                   : <><Link2 className="mr-2 h-4 w-4" /> Jalankan Mapping</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MAP WAREHOUSE DIALOG ─────────────────────────────────────────────────── */}
+      <Dialog
+        open={mapWhOpen}
+        onOpenChange={(open) => {
+          if (mappingWh) return;
+          setMapWhOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Warehouse className="h-5 w-5 text-cyan-500" />
+              Map Variant ↔ Ginee Warehouse
+            </DialogTitle>
+            <DialogDescription>
+              Iterate <strong>{GINEE_WAREHOUSE_IDS.length} warehouse Ginee</strong> dan populate
+              kolom <code>gineeWarehouseId</code> di tiap variant lokal. Wajib jalan setelah
+              <strong> Map by SKU</strong> karena lookup-nya pakai <code>gineeSkuId</code>.
+              Strategi pilih warehouse: prefer yang <code>availableStock &gt; 0</code>, fallback ke yang pertama.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Result panel */}
+          {mapWhResult && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm space-y-2">
+              <div className="font-semibold text-emerald-900">
+                {mapWhDryRun ? '📋 Preview Hasil' : '✅ Mapping Selesai'}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-emerald-800">
+                <div>Warehouse scanned:</div>
+                <div className="font-medium text-right">{mapWhResult.warehousesScanned}</div>
+                <div>Total pages fetched:</div>
+                <div className="font-medium text-right">{mapWhResult.pagesFetched}</div>
+                <div>Inventory rows scanned:</div>
+                <div className="font-medium text-right">{mapWhResult.inventoryRowsScanned}</div>
+                <div>Variant ter-match:</div>
+                <div className="font-medium text-right">{mapWhResult.matchedVariants}</div>
+                <div>{mapWhDryRun ? 'Akan di-update:' : 'Variant updated:'}</div>
+                <div className="font-medium text-right text-emerald-900">{mapWhResult.updatedVariants}</div>
+                <div>Variant di multi-warehouse:</div>
+                <div className="font-medium text-right">{mapWhResult.multiWarehouseVariants}</div>
+              </div>
+
+              {mapWhResult.sampleUnmappedWarehouseIds.length > 0 && (
+                <div className="pt-2 mt-2 border-t border-emerald-200">
+                  <div className="text-xs text-amber-700 mb-1">
+                    Sample masterVariationId yang tidak ketemu di local DB (perlu Map by SKU dulu):
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {mapWhResult.sampleUnmappedWarehouseIds.map((id) => (
+                      <code key={id} className="px-1.5 py-0.5 rounded bg-white border text-[10px] text-slate-700">
+                        {id}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Options */}
+          <div className="space-y-3 py-2">
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-slate-50">
+              <div className="space-y-0.5 pr-4">
+                <Label htmlFor="map-wh-dry-run" className="text-sm font-medium">
+                  Dry Run (Preview Only)
+                </Label>
+                <p className="text-xs text-slate-500">
+                  Hitung berapa variant yang akan dapat warehouseId tanpa update DB. Recommended sebelum live run.
+                </p>
+              </div>
+              <Switch
+                id="map-wh-dry-run"
+                checked={mapWhDryRun}
+                onCheckedChange={setMapWhDryRun}
+                disabled={mappingWh}
+              />
+            </div>
+
+            {mappingWh && (
+              <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+                <RefreshCw className="h-4 w-4 animate-spin shrink-0 mt-0.5" />
+                <span>
+                  Sedang memproses ~{GINEE_WAREHOUSE_IDS.length} warehouse. Bisa 30-60 menit.
+                  Tutup tab boleh — job tetap jalan di background.
+                </span>
+              </div>
+            )}
+
+            {!mapWhDryRun && !mappingWh && (
+              <div className="flex gap-2 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-700">
+                <span className="text-lg leading-none">ℹ️</span>
+                <span>
+                  Mode live — akan update <code>gineeWarehouseId</code> di <code>product_variants</code>.
+                  Setelah selesai, hourly scheduler dan hook payment akan langsung pakai warehouse yang benar per variant.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setMapWhOpen(false)}
+              disabled={mappingWh}
+            >
+              Tutup
+            </Button>
+            <Button
+              onClick={handleMapWarehouses}
+              disabled={mappingWh}
+              className={mapWhDryRun ? 'bg-blue-600 hover:bg-blue-700' : 'bg-cyan-600 hover:bg-cyan-700'}
+            >
+              {mappingWh
+                ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                : mapWhDryRun
+                  ? <><Search className="mr-2 h-4 w-4" /> Preview Match</>
+                  : <><Warehouse className="mr-2 h-4 w-4" /> Jalankan Mapping</>
               }
             </Button>
           </DialogFooter>
