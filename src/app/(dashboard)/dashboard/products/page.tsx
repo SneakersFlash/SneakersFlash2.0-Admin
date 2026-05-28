@@ -176,15 +176,66 @@ export default function ProductsPage() {
   };
 
   // ── Google Sheet sync ─────────────────────────────────────────────────────────
+  // Sync Google Sheet — endpoint sekarang enqueue ke Bull queue (background),
+  // admin polling status setiap 3 detik sampai selesai.
   const handleSyncGoogleSheet = async () => {
     setSyncing(true);
-    const toastId = toast.loading('Sinkronisasi dengan Google Sheet...');
+    const toastId = toast.loading('Queuing job sync Google Sheet...');
+
     try {
-      const response = await api.post('/products/sync/google-sheet');
-      toast.success(response.data.message || 'Sinkronisasi Berhasil!', { id: toastId });
-      fetchProducts();
+      const enqueueResp = await api.post('/products/sync/google-sheet');
+
+      if (!enqueueResp.data.queued) {
+        toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
+        setSyncing(false);
+        return;
+      }
+
+      toast.loading('Sync berjalan di background. Polling status…', { id: toastId });
+
+      // Poll status — timeout 10 menit (sync 2000+ produk biasanya butuh beberapa menit)
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 10 * 60 * 1000;
+      const POLL_INTERVAL_MS = 3000;
+
+      while (true) {
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          toast.error('Timeout 10 menit — cek log server.', { id: toastId });
+          break;
+        }
+
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+        const statusResp = await api.get('/products/sync/google-sheet/status');
+        const { state, lastResult, lastError } = statusResp.data;
+
+        if (state === 'running' || state === 'waiting') {
+          toast.loading(`Status: ${state}…`, { id: toastId });
+          continue;
+        }
+
+        if (state === 'completed' && lastResult) {
+          toast.success(lastResult.message ?? 'Sinkronisasi Berhasil!', {
+            id: toastId,
+            duration: 8000,
+          });
+          fetchProducts();
+          break;
+        }
+
+        if (state === 'failed') {
+          toast.error(`Sync gagal: ${lastError ?? 'unknown error'}`, {
+            id: toastId,
+            duration: 10000,
+          });
+          break;
+        }
+
+        toast.warning('Status idle — job mungkin sudah selesai sebelumnya.', { id: toastId });
+        break;
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Gagal sinkronisasi', { id: toastId });
+      toast.error(error.response?.data?.message || 'Gagal queue sync', { id: toastId });
     } finally {
       setSyncing(false);
     }
