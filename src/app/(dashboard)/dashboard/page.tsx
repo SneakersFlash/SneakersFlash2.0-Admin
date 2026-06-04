@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/utils';
 import type { DashboardStats, RevenueChartData, OrderStatusDist } from '@/types';
 import api, { getErrorMessage } from '@/lib/api';
 
-const PIE_COLORS = ['#f59e0b', '#6366f1', '#f97316', '#22c55e', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6'];
+const PIE_COLORS = ['#f59e0b', '#6366f1', '#f97316', '#ef4444', '#22c55e', '#3b82f6', '#ec4899', '#14b8a6'];
 
 export default function DashboardPage() {
   const [stats, setStats]           = useState<DashboardStats | null>(null);
@@ -29,7 +29,7 @@ export default function DashboardPage() {
       setIsLoading(true);
       const [statsRes, chartRes, statusRes] = await Promise.all([
         api.get<DashboardStats>('/dashboard/stats'),
-        api.get<RevenueChartData[]>('/dashboard/revenue-chart?days=7'),
+        api.get<RevenueChartData[]>('/dashboard/revenue-chart?days=30'),
         api.get<OrderStatusDist[]>('/dashboard/order-status'),
       ]);
       setStats(statsRes.data);
@@ -101,7 +101,7 @@ export default function DashboardPage() {
         <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Revenue 7 Hari Terakhir</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Revenue 30 Hari Terakhir</h3>
               <p className="text-xs text-gray-500 mt-0.5">Total pendapatan harian</p>
             </div>
             <TrendingUp className="w-4 h-4 text-green-500" />
