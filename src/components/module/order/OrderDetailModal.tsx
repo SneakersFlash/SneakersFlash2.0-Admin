@@ -25,7 +25,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const [isProcessing, setIsProcessing] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [cancelReason, setCancelReason] = useState('');
-  const [trackingData, setTrackingData] = useState<LionParcelTrackingResult | null>(null);
+  const [trackingData, setTrackingData] = useState<LionParcelTrackingResult | TrackingResult | null>(null);
 
   useEffect(() => {
     if (order?.awbTrackingNumber) {
@@ -81,19 +81,45 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
   };
 
-  // Cetak label Lion Parcel menggunakan STT number
-  const handlePrintLabel = () => {
-    // Untuk LP: gunakan lionParcelSttId; untuk Komerce: gunakan trackingNumber
-    const stt = order.shippingProvider === 'LION_PARCEL'
-      ? (order.lionParcelSttId || order.awbTrackingNumber || order.awb || trackingNumber)
-      : trackingNumber;
-
-    if (!stt) {
-      return toast.error('Nomor resi belum tersedia.');
-    }
-
+  // Cetak label Lion Parcel — buka URL genesis LP
+  const handlePrintLabelLP = () => {
+    const stt = order.lionParcelSttId || order.awbTrackingNumber || order.awb || trackingNumber;
+    if (!stt) return toast.error('STT Lion Parcel belum tersedia.');
     const url = `https://genesis.lionparcel.com/print/stt?q=${stt}&client=40477`;
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Cetak label Komerce — download PDF via backend (base64 blob)
+  const handlePrintLabelKomerce = async () => {
+    if (!order.komerceOrderId) return toast.error('Pesanan ini tidak memiliki Komerce Order ID');
+    const printWindow = window.open('', '_blank');
+    try {
+      setIsProcessing(true);
+      if (printWindow) printWindow.document.write('Memuat dokumen resi pengiriman...');
+      const { data } = await api.get(`/logistics/label/${order.komerceOrderId}`);
+      if (data?.base64) {
+        const base64Response = await fetch(`data:application/pdf;base64,${data.base64}`);
+        const blob = await base64Response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        if (printWindow) printWindow.location.href = blobUrl;
+      } else if (data?.pdf_url) {
+        if (printWindow) printWindow.location.href = data.pdf_url;
+      } else {
+        if (printWindow) printWindow.close();
+        toast.error('Data label gagal didapatkan dari Komerce.');
+      }
+    } catch (error) {
+      if (printWindow) printWindow.close();
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Router: pilih fungsi sesuai provider
+  const handlePrintLabel = () => {
+    if (order.shippingProvider === 'LION_PARCEL') return handlePrintLabelLP();
+    return handlePrintLabelKomerce();
   };
 
   const handleTrackOrder = async () => {
@@ -116,7 +142,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
         courier,
         shippingProvider: order.shippingProvider ?? null,
       });
-      setTrackingData(result as LionParcelTrackingResult);
+      setTrackingData(result as LionParcelTrackingResult | TrackingResult);
       toast.success('Berhasil memuat status pengiriman');
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -502,6 +528,39 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                   </div>
                 );
               })()}
+
+              {/* TAMPILAN TIMELINE TRACKING (Komerce / RajaOngkir) */}
+              {trackingData && (trackingData as any).manifest && (
+                <div className="bg-white border rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                      <Truck className="w-4 h-4" /> Riwayat Perjalanan Paket
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {(trackingData as any).delivered && (
+                        <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Terkirim
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-500">
+                        {(trackingData as any).summary?.courier_name} · {(trackingData as any).summary?.service_code}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="relative pl-6 border-l-2 border-indigo-100 space-y-5">
+                    {((trackingData as any).manifest as any[]).map((item: any, idx: number) => (
+                      <div key={idx} className="relative">
+                        <div className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 border-white ${idx === 0 ? 'bg-indigo-600' : 'bg-gray-300'}`} />
+                        <p className={`text-xs font-semibold ${idx === 0 ? 'text-indigo-700' : 'text-gray-500'}`}>
+                          {item.manifest_date} {item.manifest_time}
+                          {item.city_name && <span className="text-gray-400 ml-1">· {item.city_name}</span>}
+                        </p>
+                        <p className={`text-sm ${idx === 0 ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{item.manifest_description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
