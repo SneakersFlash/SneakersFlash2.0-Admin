@@ -72,6 +72,15 @@ export interface Order {
   discountAmount: number;
   total: number;
 
+  // ─── Lion Parcel / Komerce routing fields ──────────────────────────────────
+  komerceOrderId?:    string | null;
+  lionParcelSttId?:   string | null;
+  shippingProvider?:  'LION_PARCEL' | 'KOMERCE' | null;
+  awb?:               string | null;  // = lionParcelSttId setelah di-ship
+  trackingNumber?:    string | null;
+  awbTrackingNumber?: string | null;
+  pointsRedeemed?:    number;
+
   user: OrderUser | null; // Bisa null jika checkout sebagai guest
   address: OrderAddress;
   courier: CourierInfo;

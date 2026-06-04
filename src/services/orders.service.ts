@@ -83,6 +83,35 @@ export interface TrackingResult {
   manifest: TrackingManifest[];
 }
 
+export interface LionParcelHistoryItem {
+  row:              number;
+  datetime:         string;   // ISO: "2026-05-08T11:28:54+07:00"
+  status_code:      string;   // "BKD", "DLV", "POD", dll
+  current_status:   string;
+  location:         string;   // kode kota: "CGK"
+  city:             string;   // nama kota: "JAKARTA"
+  remarks:          string;
+  stt_journey_type: string;   // deskripsi: "PAKETMU TELAH DIPROSES..."
+  proof?: {
+    name:     string;
+    relation: string;
+  };
+}
+ 
+export interface LionParcelTrackingResult {
+  provider:       'LION_PARCEL';   // ditambahkan oleh backend kita
+  stt_no:         string;          // "99LP1778214534665"
+  sender_name:    string;
+  recipient_name: string;
+  origin:         string;          // "KEBON JERUK, JAKARTA BARAT"
+  destination:    string;          // "TEBET, JAKARTA SELATAN"
+  current_status: string;          // "BKD", "DLV", dll
+  status_code:    string;
+  product_type:   string;          // "REGPACK", "JAGOPACK", dll
+  gross_weight:   number;
+  history:        LionParcelHistoryItem[];  // sudah sorted terbaru di atas oleh backend
+}
+
 const OrdersService = {
   // ─── FIX: return type pakai OrdersAdminResponse agar meta.lastPage tersedia ──
   async getOrders(params: OrderQueryParams): Promise<OrdersAdminResponse> {
@@ -137,18 +166,39 @@ const OrdersService = {
   },
 
   /**
-   * Lacak resi via RajaOngkir
-   * @param awb       Nomor resi
-   * @param courier   Kode kurir lowercase (jne, sicepat, dll)
-   * @param lastPhone 5 digit terakhir nomor HP penerima — wajib untuk JNE
+   * Lacak resi Lion Parcel via endpoint /logistics/track-lion/:stt
    */
-  async trackShipment(awb: string, courier: string, lastPhone?: string): Promise<TrackingResult> {
+  async trackLionParcel(stt: string): Promise<LionParcelTrackingResult> {
+    const { data } = await api.get<LionParcelTrackingResult>(`/logistics/track-lion/${stt}`);
+    return data;
+  },
+
+  /**
+   * Lacak resi Komerce (kurir instant/same day) via RajaOngkir
+   * @param awb     Nomor resi
+   * @param courier Kode kurir lowercase (gosend, grabexpress, dll)
+   */
+  async trackKomerce(awb: string, courier: string): Promise<TrackingResult> {
     const params: Record<string, string> = { courier };
-    if (lastPhone) {
-      params.last_phone = lastPhone.replace(/\D/g, '').slice(-5);
-    }
     const { data } = await api.get<TrackingResult>(`/logistics/track/${awb}`, { params });
     return data;
+  },
+
+  /**
+   * Lacak resi secara otomatis berdasarkan shippingProvider order.
+   * - LION_PARCEL  → trackLionParcel (gunakan lionParcelSttId / awb)
+   * - KOMERCE / null → trackKomerce (gunakan awb + courierCode)
+   */
+  async trackAny(params: {
+    awb: string;
+    courier: string;
+    shippingProvider?: 'LION_PARCEL' | 'KOMERCE' | null;
+  }): Promise<LionParcelTrackingResult | TrackingResult> {
+    const { awb, courier, shippingProvider } = params;
+    if (shippingProvider === 'LION_PARCEL') {
+      return this.trackLionParcel(awb);
+    }
+    return this.trackKomerce(awb, courier);
   },
 };
 

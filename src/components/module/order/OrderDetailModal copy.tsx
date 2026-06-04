@@ -46,9 +46,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const statusConf = ORDER_STATUS_CONFIG[order.status as OrderStatus];
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
-    const isLionParcelOrder = order.shippingProvider === 'LION_PARCEL';
-    // LP orders sudah punya STT dari backend — skip validasi resi manual
-    if (newStatus === 'shipped' && !isLionParcelOrder && !trackingNumber.trim()) {
+    if (newStatus === 'shipped' && !trackingNumber.trim()) {
       return toast.error('Nomor Resi wajib diisi untuk mengirim barang secara manual!');
     }
     try {
@@ -81,41 +79,29 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
   };
 
-  // Cetak label Lion Parcel menggunakan STT number
+  // 👇 FUNGSI BARU: CETAK LABEL KOMERCE (MENGGUNAKAN BASE64 BLOB)
   const handlePrintLabel = () => {
-    // Untuk LP: gunakan lionParcelSttId; untuk Komerce: gunakan trackingNumber
-    const stt = order.shippingProvider === 'LION_PARCEL'
-      ? (order.lionParcelSttId || order.awbTrackingNumber || order.awb || trackingNumber)
-      : trackingNumber;
-
-    if (!stt) {
+    if (!trackingNumber) {
       return toast.error('Nomor resi belum tersedia.');
     }
 
-    const url = `https://genesis.lionparcel.com/print/stt?q=${stt}&client=40477`;
+    const url = `https://stg-genesis.lionparcel.com/print/stt?q=${trackingNumber}&client=2407`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleTrackOrder = async () => {
-    const isLionParcel = order.shippingProvider === 'LION_PARCEL';
-
-    // LP order: gunakan lionParcelSttId (= awbTrackingNumber = awb setelah dikirim)
-    const awb = isLionParcel
-      ? (order.lionParcelSttId || order.awbTrackingNumber || order.awb)
-      : (order.awb || order.trackingNumber || order.courier?.trackingNumber);
-
+    const awb = order.trackingNumber || order.courier?.trackingNumber;
     const courier = (order.courierName || order.courier?.name || '').toLowerCase();
 
     if (!awb) return toast.error('Nomor resi belum tersedia untuk pesanan ini.');
-    if (!isLionParcel && !courier) return toast.error('Nama kurir tidak ditemukan.');
+    if (!courier) return toast.error('Nama kurir tidak ditemukan.');
+
+    // JNE butuh 5 digit terakhir nomor HP penerima
+    const phone = order.address?.phone || order.user?.phone || '';
 
     try {
       setIsProcessing(true);
-      const result = await OrdersService.trackAny({
-        awb,
-        courier,
-        shippingProvider: order.shippingProvider ?? null,
-      });
+      const result = await OrdersService.trackAny({ awb, courier, shippingProvider: order.shippingProvider ?? null });
       setTrackingData(result as LionParcelTrackingResult);
       toast.success('Berhasil memuat status pengiriman');
     } catch (error) {
@@ -239,48 +225,23 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           )}
 
           {/* PROCESSING -> SHIPPED */}
-          {order.status === 'processing' && (
+          {order.status === 'processing' &&(
             <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex flex-col gap-3">
-              {order.shippingProvider === 'LION_PARCEL' ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-bold text-indigo-900">Pesanan Lion Parcel</label>
-                    <p className="text-xs text-indigo-700">
-                      STT Lion Parcel: <span className="font-mono font-bold">{order.lionParcelSttId || '-'}</span>
-                    </p>
-                    <p className="text-xs text-indigo-700">Kemas barang dan cetak label, kurir LP akan melakukan pickup.</p>
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    {/* Cetak label LP — butuh STT */}
-                    {order.lionParcelSttId && (
-                      <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/2">
-                        <Printer className="w-4 h-4 mr-2" /> Cetak Label LP
-                      </Button>
-                    )}
-                    <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
-                      <Truck className="w-4 h-4 mr-2" /> Tandai Dikirim
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-bold text-indigo-900">Pesanan Siap Dikirim?</label>
-                    <p className="text-xs text-indigo-700">Kemas barang, cetak label resi, lalu panggil kurir Komerce.</p>
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    {/* Tombol Cetak Label (Bisa dicetak meski masih processing selama sudah ada Komerce ID) */}
-                    {order.komerceOrderId && (
-                      <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
-                        <Printer className="w-4 h-4 mr-2" /> Cetak Label
-                      </Button>
-                    )}
-                    <Button onClick={handleKomercePickup} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
-                      <Truck className="w-4 h-4 mr-2" /> Panggil Kurir (Pickup)
-                    </Button>
-                  </div>
-                </>
-              )}
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-indigo-900">Pesanan Siap Dikirim?</label>
+                <p className="text-xs text-indigo-700">Kemas barang, cetak label resi, lalu panggil kurir Komerce.</p>
+              </div>
+              <div className="flex gap-2 mt-1">
+                 {/* Tombol Cetak Label (Bisa dicetak meski masih processing selama sudah ada Komerce ID) */}
+                 {order.komerceOrderId && (
+                  <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
+                    <Printer className="w-4 h-4 mr-2" /> Cetak Label
+                  </Button>
+                )}
+                <Button onClick={handleKomercePickup} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
+                  <Truck className="w-4 h-4 mr-2" /> Panggil Kurir (Pickup)
+                </Button>
+              </div>
             </div>
           )}
 
@@ -295,11 +256,13 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 
                 <div className="flex flex-wrap gap-1">
                   {/* Tombol Cetak Label di status Shipped */}
-                  {/* LP: tampilkan jika ada STT; Komerce: tampilkan jika ada komerceOrderId */}
-                  {(order.shippingProvider === 'LION_PARCEL'
-                    ? !!(order.lionParcelSttId || trackingNumber)
-                    : !!order.komerceOrderId
-                  ) && (
+                  {order.komerceOrderId && (
+                    <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white">
+                      <Printer className="w-4 h-4 mr-2" /> Cetak Label
+                    </Button>
+                  )}
+
+                  {trackingNumber && (
                     <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white">
                       <Printer className="w-4 h-4 mr-2" /> Cetak Label
                     </Button>
