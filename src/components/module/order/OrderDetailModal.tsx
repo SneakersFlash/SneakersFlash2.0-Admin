@@ -343,8 +343,9 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
               </div>
 
               {/* TAMPILAN TIMELINE TRACKING (Lion Parcel) */}
-              {trackingData && trackingData.history && (() => {
-                const history: any[] = trackingData.history;
+              {trackingData && 'history' in trackingData && (() => {
+                const lpData  = trackingData as LionParcelTrackingResult;
+                const history: any[] = lpData.history ?? [];
                 const bkdEvent      = history.find((ev: any) => ev.status_code === 'BKD' && !ev.stt_journey_type);
                 const adjustedEvent = history.find((ev: any) =>
                   ev.status_code === 'STT ADJUSTED' || ev.status_code === 'STT ADJUSTED POD'
@@ -396,17 +397,17 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                         <Truck className="w-4 h-4" /> Riwayat Perjalanan Paket
                       </h4>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
-                        {trackingData.current_status && (() => { const cfg = getLionStatus(trackingData.current_status); const cls = LION_STATUS_CLASSES[cfg.color]; return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cls.badge}`}>{cfg.label}</span>; })()}
+                        {lpData.current_status && (() => { const cfg = getLionStatus(lpData.current_status); const cls = LION_STATUS_CLASSES[cfg.color]; return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cls.badge}`}>{cfg.label}</span>; })()}
                         {(() => { const jt = history[0]?.stt_journey_type; const jtCfg = jt ? LION_JOURNEY_TYPE[jt] : null; if (!jtCfg) return null; return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${LION_STATUS_CLASSES[jtCfg.color].badge}`}>{jtCfg.label}</span>; })()}
-                        <span className="text-xs text-gray-400">Lion Parcel · {trackingData.product_type}</span>
+                        <span className="text-xs text-gray-400">Lion Parcel · {lpData.product_type}</span>
                       </div>
                     </div>
-                    {(trackingData.origin || trackingData.destination) && (
+                    {(lpData.origin || lpData.destination) && (
                       <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
                         <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                        <span className="font-medium text-gray-700">{trackingData.origin}</span>
+                        <span className="font-medium text-gray-700">{lpData.origin}</span>
                         <span className="text-gray-300">→</span>
-                        <span className="font-medium text-gray-700">{trackingData.destination}</span>
+                        <span className="font-medium text-gray-700">{lpData.destination}</span>
                       </div>
                     )}
 
@@ -519,10 +520,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                         );
                       })}
                     </div>
-                    {isLionParcelDelivered(trackingData.current_status) && (
+                    {isLionParcelDelivered(lpData.current_status) && (
                       <div className="pt-3 border-t border-dashed border-gray-200 text-xs text-gray-500 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-green-500" />
-                        <span>Paket telah diterima oleh <span className="font-semibold text-gray-700">{trackingData.recipient_name}</span></span>
+                        <span>Paket telah diterima oleh <span className="font-semibold text-gray-700">{lpData.recipient_name}</span></span>
                       </div>
                     )}
                   </div>
