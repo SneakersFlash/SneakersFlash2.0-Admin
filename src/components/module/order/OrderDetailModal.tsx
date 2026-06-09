@@ -83,7 +83,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   // Cetak label Lion Parcel — buka URL genesis LP
   const handlePrintLabelLP = () => {
-    const stt = order.trackingNumber || order.awbTrackingNumber || order.awb || trackingNumber;
+    const stt = order.courier?.trackingNumber || order.awbTrackingNumber || order.awb || trackingNumber;
     if (!stt) return toast.error('STT Lion Parcel belum tersedia.');
     const url = `https://genesis.lionparcel.com/print/stt?q=${stt}&client=40477`;
     window.open(url, '_blank', 'noopener,noreferrer');
