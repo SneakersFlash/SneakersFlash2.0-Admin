@@ -26,6 +26,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const [trackingNumber, setTrackingNumber] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [trackingData, setTrackingData] = useState<LionParcelTrackingResult | TrackingResult | null>(null);
+  const [deeplinkInput, setDeeplinkInput] = useState('');
+  const [isSavingDeeplink, setIsSavingDeeplink] = useState(false);
 
   useEffect(() => {
     if (order?.awbTrackingNumber) {
@@ -37,8 +39,9 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     } else {
       setTrackingNumber('');
     }
+    setDeeplinkInput(order?.deeplinkUrl || '');
     setCancelReason('');
-    setTrackingData(null); // Reset tracking saat modal dibuka untuk pesanan lain
+    setTrackingData(null);
   }, [order]);
 
   if (!order) return null;
@@ -81,45 +84,86 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
   };
 
-  // Cetak label Lion Parcel — buka URL genesis LP
-  const handlePrintLabelLP = () => {
-    const stt = order.courier?.trackingNumber || order.awbTrackingNumber || order.awb || trackingNumber;
-    if (!stt) return toast.error('STT Lion Parcel belum tersedia.');
-    const url = `https://genesis.lionparcel.com/print/stt?q=${stt}&client=40477`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+  // Cetak label custom Sneakers Flash (semua jenis kurir)
+  const handlePrintLabel = () => {
+    const resi    = order.trackingNumber || order.courier?.trackingNumber || order.awbTrackingNumber || '-';
+    const courier = order.courier?.name || order.courierName || '-';
+    const items   = (order.items || []).map((i: any) =>
+      `${i.productName}${i.variantSku ? ` - ${i.variantSku}` : ''}`
+    ).join('<br>');
+    const address = [
+      order.address?.street,
+      order.address?.subdistrict ? `Kec. ${order.address.subdistrict}` : '',
+      order.address?.city,
+      order.address?.province,
+      order.address?.postalCode,
+    ].filter(Boolean).join(', ');
+
+    const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Label Pengiriman - ${order.orderNumber}</title>
+<style>
+  @page { margin: 12mm; size: A5; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; background: #fff; }
+  .logo { text-align: center; margin-bottom: 10px; }
+  .logo img { max-height: 60px; max-width: 160px; object-fit: contain; }
+  .courier { text-align: center; font-size: 22pt; font-weight: 900; letter-spacing: 2px; margin: 8px 0 14px; text-transform: uppercase; }
+  hr { border: none; border-top: 1.5px solid #000; margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 3px; vertical-align: top; line-height: 1.4; }
+  td.label { font-weight: bold; width: 140px; white-space: nowrap; }
+  td.colon { width: 12px; }
+  .resi { font-family: monospace; font-size: 10pt; font-weight: bold; }
+  @media print { body { -webkit-print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="logo">
+  <img src="/images/Logo.png" alt="Sneakers Flash" onerror="this.outerHTML='<h2 style=font-size:18pt;font-weight:900;letter-spacing:1px>SNKRS FLASH</h2>'" />
+</div>
+<div class="courier">${courier}</div>
+<hr>
+<table>
+  <tr><td class="label">NAMA</td><td class="colon">:</td><td>${order.address?.recipientName || '-'}</td></tr>
+  <tr><td class="label">NO TEL/HP</td><td class="colon">:</td><td>${order.address?.phone || '-'}</td></tr>
+  <tr><td class="label">ALAMAT</td><td class="colon">:</td><td>${address || '-'}</td></tr>
+</table>
+<hr>
+<table>
+  <tr><td class="label">No Orderan</td><td class="colon">:</td><td class="resi">${order.orderNumber}</td></tr>
+</table>
+<hr>
+<table>
+  <tr><td class="label">PENGIRIM</td><td class="colon">:</td><td>Sneakers Flash</td></tr>
+  <tr><td class="label"></td><td class="colon">:</td><td>081280642219</td></tr>
+  <tr><td class="label">BARANG YG DIKIRIM</td><td class="colon">:</td><td>${items || '-'}</td></tr>
+  ${resi !== '-' ? `<tr><td class="label">NO RESI</td><td class="colon">:</td><td class="resi">${resi}</td></tr>` : ''}
+</table>
+<script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return toast.error('Pop-up diblokir browser. Izinkan pop-up dan coba lagi.');
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
-  // Cetak label Komerce — download PDF via backend (base64 blob)
-  const handlePrintLabelKomerce = async () => {
-    if (!order.komerceOrderId) return toast.error('Pesanan ini tidak memiliki Komerce Order ID');
-    const printWindow = window.open('', '_blank');
+  const handleSaveDeeplink = async () => {
+    if (!deeplinkInput.trim()) return toast.error('Masukkan URL tracking terlebih dahulu.');
     try {
-      setIsProcessing(true);
-      if (printWindow) printWindow.document.write('Memuat dokumen resi pengiriman...');
-      const { data } = await api.get(`/logistics/label/${order.komerceOrderId}`);
-      if (data?.base64) {
-        const base64Response = await fetch(`data:application/pdf;base64,${data.base64}`);
-        const blob = await base64Response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        if (printWindow) printWindow.location.href = blobUrl;
-      } else if (data?.pdf_url) {
-        if (printWindow) printWindow.location.href = data.pdf_url;
-      } else {
-        if (printWindow) printWindow.close();
-        toast.error('Data label gagal didapatkan dari Komerce.');
-      }
+      setIsSavingDeeplink(true);
+      await OrdersService.updateDeeplinkUrl(String(order.id), deeplinkInput.trim());
+      toast.success('Link tracking berhasil disimpan');
+      onRefresh();
     } catch (error) {
-      if (printWindow) printWindow.close();
       toast.error(getErrorMessage(error));
     } finally {
-      setIsProcessing(false);
+      setIsSavingDeeplink(false);
     }
-  };
-
-  // Router: pilih fungsi sesuai provider
-  const handlePrintLabel = () => {
-    if (order.shippingProvider === 'LION_PARCEL') return handlePrintLabelLP();
-    return handlePrintLabelKomerce();
   };
 
   const handleTrackOrder = async () => {
@@ -265,72 +309,117 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           )}
 
           {/* PROCESSING -> SHIPPED */}
-          {order.status === 'processing' && (
-            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex flex-col gap-3">
-              {order.shippingProvider === 'LION_PARCEL' ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-bold text-indigo-900">Pesanan Lion Parcel</label>
-                    <p className="text-xs text-indigo-700">
-                      STT Lion Parcel: <span className="font-mono font-bold">{order.lionParcelSttId || '-'}</span>
-                    </p>
-                    <p className="text-xs text-indigo-700">Kemas barang dan cetak label, kurir LP akan melakukan pickup.</p>
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    {/* Cetak label LP — butuh STT */}
-                    {order.lionParcelSttId && (
+          {order.status === 'processing' && (() => {
+            const courierUpper = (order.courier?.name || order.courierName || '').toUpperCase();
+            const isInstant = courierUpper.includes('GOSEND') || courierUpper.includes('GRAB');
+            const isLP = order.shippingProvider === 'LION_PARCEL';
+            return (
+              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex flex-col gap-3">
+                {isLP ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-sm font-bold text-indigo-900">Pesanan Lion Parcel</label>
+                      <p className="text-xs text-indigo-700">STT: <span className="font-mono font-bold">{order.trackingNumber || order.lionParcelSttId || '-'}</span></p>
+                      <p className="text-xs text-indigo-700">Kemas barang, cetak label, kurir LP akan pickup.</p>
+                    </div>
+                    <div className="flex gap-2 mt-1">
                       <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/2">
-                        <Printer className="w-4 h-4 mr-2" /> Cetak Label LP
+                        <Printer className="w-4 h-4 mr-2" /> Cetak Label
                       </Button>
-                    )}
-                    <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
-                      <Truck className="w-4 h-4 mr-2" /> Tandai Dikirim
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-bold text-indigo-900">Pesanan Siap Dikirim?</label>
-                    <p className="text-xs text-indigo-700">Kemas barang, cetak label resi, lalu panggil kurir Komerce.</p>
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    {/* Tombol Cetak Label (Bisa dicetak meski masih processing selama sudah ada Komerce ID) */}
-                    {order.komerceOrderId && (
+                      <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
+                        <Truck className="w-4 h-4 mr-2" /> Tandai Dikirim
+                      </Button>
+                    </div>
+                  </>
+                ) : isInstant ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-sm font-bold text-indigo-900">Kurir Instant ({courierUpper})</label>
+                      <p className="text-xs text-indigo-700">Kemas barang dan cetak label. Tempel link tracking Gosend/Grab di bawah (opsional).</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://gosend.id/track/... atau link Grab"
+                        value={deeplinkInput}
+                        onChange={(e) => setDeeplinkInput(e.target.value)}
+                        className="text-xs bg-white"
+                      />
+                      <Button variant="outline" onClick={handleSaveDeeplink} disabled={isSavingDeeplink} className="bg-white text-indigo-600 border-indigo-200 whitespace-nowrap text-xs px-3">
+                        Simpan Link
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 mt-1">
                       <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
                         <Printer className="w-4 h-4 mr-2" /> Cetak Label
                       </Button>
-                    )}
-                    <Button onClick={handleKomercePickup} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
-                      <Truck className="w-4 h-4 mr-2" /> Panggil Kurir (Pickup)
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                      <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
+                        <Truck className="w-4 h-4 mr-2" /> Tandai Dikirim
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-sm font-bold text-indigo-900">Pesanan Siap Dikirim?</label>
+                      <p className="text-xs text-indigo-700">Kemas barang, cetak label resi, lalu panggil kurir Komerce.</p>
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                      {order.komerceOrderId && (
+                        <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
+                          <Printer className="w-4 h-4 mr-2" /> Cetak Label
+                        </Button>
+                      )}
+                      <Button onClick={handleKomercePickup} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
+                        <Truck className="w-4 h-4 mr-2" /> Panggil Kurir (Pickup)
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* SHIPPED -> DELIVERED */}
           {order.status === 'shipped' && (
             <div className="space-y-4">
+              {/* Deeplink input untuk instant courier di status shipped */}
+              {(() => {
+                const courierUpper = (order.courier?.name || order.courierName || '').toUpperCase();
+                const isInstant = courierUpper.includes('GOSEND') || courierUpper.includes('GRAB');
+                if (!isInstant) return null;
+                return (
+                  <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 flex flex-col gap-2">
+                    <label className="text-xs font-bold text-orange-800">Link Tracking Kurir Instant</label>
+                    {order.deeplinkUrl && (
+                      <a href={order.deeplinkUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-blue-600 underline break-all">{order.deeplinkUrl}</a>
+                    )}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://gosend.id/track/..."
+                        value={deeplinkInput}
+                        onChange={(e) => setDeeplinkInput(e.target.value)}
+                        className="text-xs bg-white"
+                      />
+                      <Button variant="outline" onClick={handleSaveDeeplink} disabled={isSavingDeeplink} className="bg-white text-orange-600 border-orange-200 whitespace-nowrap text-xs px-3">
+                        Simpan
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-4 rounded-lg border gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Nomor Resi Pengiriman</p>
                   <p className="font-bold text-lg font-mono tracking-wider text-gray-900">{order.trackingNumber || trackingNumber || '-'}</p>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-1">
-                  {/* Tombol Cetak Label di status Shipped */}
-                  {/* LP: tampilkan jika ada STT; Komerce: tampilkan jika ada komerceOrderId */}
-                  {(order.shippingProvider === 'LION_PARCEL'
-                    ? !!(order.lionParcelSttId || trackingNumber)
-                    : !!order.komerceOrderId
-                  ) && (
-                    <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white">
-                      <Printer className="w-4 h-4 mr-2" /> Cetak Label
-                    </Button>
-                  )}
-                  
+                  <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white">
+                    <Printer className="w-4 h-4 mr-2" /> Cetak Label
+                  </Button>
+
                   {/* Tombol Lacak Pesanan */}
                   <Button variant="outline" onClick={handleTrackOrder} disabled={isProcessing} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white">
                     <MapPin className="w-4 h-4 mr-2" /> Lacak Pesanan

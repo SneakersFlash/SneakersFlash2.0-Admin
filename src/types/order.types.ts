@@ -76,9 +76,10 @@ export interface Order {
   komerceOrderId?:    string | null;
   lionParcelSttId?:   string | null;
   shippingProvider?:  'LION_PARCEL' | 'KOMERCE' | null;
-  awb?:               string | null;  // = lionParcelSttId setelah di-ship
+  awb?:               string | null;
   trackingNumber?:    string | null;
   awbTrackingNumber?: string | null;
+  deeplinkUrl?:       string | null;
   pointsRedeemed?:    number;
 
   user: OrderUser | null; // Bisa null jika checkout sebagai guest

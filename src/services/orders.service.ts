@@ -200,6 +200,11 @@ const OrdersService = {
     }
     return this.trackKomerce(awb, courier);
   },
+
+  async updateDeeplinkUrl(orderId: string, deeplinkUrl: string) {
+    const { data } = await api.patch(`/orders/${orderId}/deeplink`, { deeplinkUrl });
+    return data;
+  },
 };
 
 export default OrdersService;
