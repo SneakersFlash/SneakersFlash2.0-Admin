@@ -28,6 +28,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const [trackingData, setTrackingData] = useState<LionParcelTrackingResult | TrackingResult | null>(null);
   const [deeplinkInput, setDeeplinkInput] = useState('');
   const [isSavingDeeplink, setIsSavingDeeplink] = useState(false);
+  const [komerceStatus, setKomerceStatus] = useState<{ driverName?: string; driverPhone?: string } | null>(null);
 
   useEffect(() => {
     if (order?.awbTrackingNumber) {
@@ -42,6 +43,23 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     setDeeplinkInput(order?.deeplinkUrl || '');
     setCancelReason('');
     setTrackingData(null);
+    setKomerceStatus(null);
+
+    // Auto-fetch Komerce live tracking URL untuk instant courier
+    const courierUpper = (order?.courier?.name || order?.courierName || '').toUpperCase();
+    const isInstant = courierUpper.includes('GOSEND') || courierUpper.includes('GRAB');
+    if (isInstant && order?.komerceOrderId) {
+      api.get(`/logistics/komerce-detail/${order.komerceOrderId}`)
+        .then(({ data }) => {
+          setKomerceStatus({ driverName: data.driverName, driverPhone: data.driverPhone });
+          if (data.liveTrackingUrl && !order.deeplinkUrl) {
+            setDeeplinkInput(data.liveTrackingUrl);
+            // Auto-simpan ke DB jika belum ada
+            OrdersService.updateDeeplinkUrl(String(order.id), data.liveTrackingUrl).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
   }, [order]);
 
   if (!order) return null;
@@ -84,8 +102,15 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
   };
 
-  // Cetak label custom Sneakers Flash (semua jenis kurir)
-  const handlePrintLabel = () => {
+  // Cetak label Lion Parcel — buka URL genesis LP (label resmi LP)
+  const handlePrintLabelLP = () => {
+    const stt = order.trackingNumber || order.courier?.trackingNumber || order.awbTrackingNumber;
+    if (!stt) return toast.error('STT Lion Parcel belum tersedia.');
+    window.open(`https://genesis.lionparcel.com/print/stt?q=${stt}&client=40477`, '_blank', 'noopener,noreferrer');
+  };
+
+  // Cetak label custom Sneakers Flash (untuk non-LP: instant, Komerce reguler)
+  const handlePrintLabelSF = () => {
     const resi    = order.trackingNumber || order.courier?.trackingNumber || order.awbTrackingNumber || '-';
     const courier = order.courier?.name || order.courierName || '-';
     const items   = (order.items || []).map((i: any) =>
@@ -150,6 +175,12 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     if (!printWindow) return toast.error('Pop-up diblokir browser. Izinkan pop-up dan coba lagi.');
     printWindow.document.write(html);
     printWindow.document.close();
+  };
+
+  // Router: LP pakai genesis LP, non-LP pakai custom SF label
+  const handlePrintLabel = () => {
+    if (order.shippingProvider === 'LION_PARCEL') return handlePrintLabelLP();
+    return handlePrintLabelSF();
   };
 
   const handleSaveDeeplink = async () => {
@@ -337,6 +368,12 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                       <label className="text-sm font-bold text-indigo-900">Kurir Instant ({courierUpper})</label>
                       <p className="text-xs text-indigo-700">Kemas barang dan cetak label. Tempel link tracking Gosend/Grab di bawah (opsional).</p>
                     </div>
+                    {komerceStatus?.driverName && (
+                      <p className="text-xs text-indigo-700">
+                        Driver: <span className="font-semibold">{komerceStatus.driverName}</span>
+                        {komerceStatus.driverPhone ? ` · ${komerceStatus.driverPhone}` : ''}
+                      </p>
+                    )}
                     <div className="flex gap-2">
                       <Input
                         placeholder="https://gosend.id/track/... atau link Grab"
