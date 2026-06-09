@@ -125,9 +125,9 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const handleTrackOrder = async () => {
     const isLionParcel = order.shippingProvider === 'LION_PARCEL';
 
-    // LP order: gunakan lionParcelSttId (= awbTrackingNumber = awb setelah dikirim)
+    // LP order: gunakan STT number (99LP...) bukan stt_id (angka)
     const awb = isLionParcel
-      ? (order.lionParcelSttId || order.awbTrackingNumber || order.awb)
+      ? (order.trackingNumber || order.courier?.trackingNumber || order.awbTrackingNumber)
       : (order.awb || order.trackingNumber || order.courier?.trackingNumber);
 
     const courier = (order.courierName || order.courier?.name || '').toLowerCase();
