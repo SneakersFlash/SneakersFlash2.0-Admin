@@ -55,8 +55,9 @@ export default function ProductForm({
       description: "",
       basePrice: 0,
       weightGrams: 100,
-      categoryId: undefined, // Sebaiknya undefined agar placeholder muncul
+      categoryId: undefined,
       brandId: undefined,
+      platform: "SF" as const,
       variants: [
         { sku: "", price: 0, stockQuantity: 0, imageUrl: [] },
       ],
@@ -117,6 +118,27 @@ export default function ProductForm({
               )}
             />
             {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId.message as string}</p>}
+          </div>
+
+          {/* ─── Platform Selector ─── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Tampil di Platform</label>
+            <Controller
+              control={control}
+              name="platform"
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value ?? "SF"}>
+                  <SelectTrigger className="w-full border-gray-300 rounded-lg">
+                    <SelectValue placeholder="Pilih Platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SF">SneakersFlash saja</SelectItem>
+                    <SelectItem value="TS">ThunderSports saja</SelectItem>
+                    <SelectItem value="BOTH">Keduanya (SF & TS)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           {/* ─── PERUBAHAN: Input Brand Diganti Select ─── */}

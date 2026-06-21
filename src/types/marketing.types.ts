@@ -1,3 +1,5 @@
+export type Platform = 'SF' | 'TS' | 'BOTH';
+
 export interface CampaignEvent {
   id: string | number;
   title: string;
@@ -11,6 +13,7 @@ export interface CampaignEvent {
   isActive: boolean;
   isTimer: boolean;
   sort: number;
+  platform: Platform;
   metaTitle: string;
   metaDescription: string;
   ogImageUrl: string;
@@ -31,6 +34,7 @@ export interface CreateCampaignPayload {
   isActive?: boolean;
   isTimer?: boolean;
   sort?: number;
+  platform?: Platform;
   metaTitle?: string;
   metaDescription?: string;
   ogImageUrl?: string;

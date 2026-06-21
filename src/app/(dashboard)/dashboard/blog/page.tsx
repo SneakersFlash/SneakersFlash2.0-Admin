@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getErrorMessage } from '@/lib/api';
 import BlogPostModal from '@/components/module/blog/BlogPostModal';
+import PlatformBadge from '@/components/shared/PlatformBadge';
 
 const STATUS_CONFIG: Record<BlogPostStatus, { label: string; cls: string }> = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-600' },
@@ -191,6 +192,7 @@ export default function BlogPostsPage() {
               <tr>
                 <th className="px-6 py-4 font-medium w-44">Thumbnail</th>
                 <th className="px-6 py-4 font-medium">Artikel</th>
+                <th className="px-6 py-4 font-medium text-center">Platform</th>
                 <th className="px-6 py-4 font-medium text-center">Status</th>
                 <th className="px-6 py-4 font-medium text-center">Views</th>
                 <th className="px-6 py-4 font-medium text-center">Unggulan</th>
@@ -201,13 +203,13 @@ export default function BlogPostsPage() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     Memuat data artikel...
                   </td>
                 </tr>
               ) : posts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     Belum ada artikel yang cocok.
                   </td>
                 </tr>
@@ -230,9 +232,7 @@ export default function BlogPostsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-900 line-clamp-2 max-w-md">
-                        {post.title}
-                      </div>
+                      <div className="font-semibold text-gray-900 line-clamp-2 max-w-md">{post.title}</div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                         <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 font-medium">
                           {post.category?.name ?? 'Tanpa kategori'}
@@ -240,6 +240,10 @@ export default function BlogPostsPage() {
                         <span>oleh {post.author?.name ?? 'Admin'}</span>
                       </div>
                       <div className="mt-1 text-xs text-gray-400 font-mono">/{post.slug}</div>
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      <PlatformBadge platform={post.platform} />
                     </td>
 
                     <td className="px-6 py-4 text-center">

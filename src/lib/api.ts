@@ -40,7 +40,7 @@ export const tokenStore = {
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'X-Platform': 'SF' },
   timeout: 15000,
 });
 

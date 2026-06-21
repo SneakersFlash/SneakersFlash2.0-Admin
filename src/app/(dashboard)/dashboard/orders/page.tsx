@@ -20,6 +20,7 @@ import {
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import type { Order, OrderStatus } from '@/types/order.types';
 import OrderDetailModal from '@/components/module/order/OrderDetailModal';
+import PlatformBadge from '@/components/shared/PlatformBadge';
 
 const STATUS_OPTIONS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'ALL',             label: 'Semua Status' },
@@ -286,15 +287,16 @@ export default function OrdersPage() {
                 <th className="px-6 py-4 font-medium">ID Pesanan & Tanggal</th>
                 <th className="px-6 py-4 font-medium">Pelanggan</th>
                 <th className="px-6 py-4 font-medium">Total Harga</th>
+                <th className="px-6 py-4 font-medium text-center">Platform</th>
                 <th className="px-6 py-4 font-medium text-center">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2"/> Memuat pesanan...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2"/> Memuat pesanan...</td></tr>
               ) : orders.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Tidak ada pesanan ditemukan.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Tidak ada pesanan ditemukan.</td></tr>
               ) : (
                 orders.map((order) => {
                   const statusConf = ORDER_STATUS_CONFIG[order.status as OrderStatus];
@@ -312,6 +314,9 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-bold text-emerald-600">Rp {Number(order.total).toLocaleString('id-ID')}</div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <PlatformBadge platform={order.storefront} />
                       </td>
                       <td className="px-6 py-4 text-center">
                         <Badge variant="outline" className={`${statusConf?.bgColor || 'bg-gray-100'} ${statusConf?.color || 'text-gray-700'} border-none`}>

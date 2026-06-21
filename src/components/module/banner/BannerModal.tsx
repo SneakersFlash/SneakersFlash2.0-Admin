@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import BannersService from '@/services/banners.service';
 import api, { getErrorMessage } from '@/lib/api';
-import type { Banner, CreateBannerPayload, BannerPosition } from '@/types/cms.types';
+import type { Banner, CreateBannerPayload, BannerPosition, Platform } from '@/types/cms.types';
 
 interface BannerModalProps {
   isOpen: boolean;
@@ -35,6 +35,7 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
     position: 'home_top',
     sortOrder: 0,
     isActive: true,
+    platform: 'SF',
   });
 
   const [files, setFiles] = useState<{ desktop: File | null; mobile: File | null }>({ desktop: null, mobile: null });
@@ -42,18 +43,19 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
 
   useEffect(() => {
     if (initialData) {
-      setFormData({ 
-        title: initialData.title, 
+      setFormData({
+        title: initialData.title,
         imageDesktopUrl: initialData.imageDesktopUrl,
         imageMobileUrl: initialData.imageMobileUrl || '',
         targetUrl: initialData.targetUrl || '',
         position: initialData.position,
         sortOrder: initialData.sortOrder,
         isActive: initialData.isActive,
+        platform: initialData.platform ?? 'SF',
       });
       setPreviews({ desktop: initialData.imageDesktopUrl, mobile: initialData.imageMobileUrl || null });
     } else {
-      setFormData({ title: '', imageDesktopUrl: '', imageMobileUrl: '', targetUrl: '', position: 'home_top', sortOrder: 0, isActive: true });
+      setFormData({ title: '', imageDesktopUrl: '', imageMobileUrl: '', targetUrl: '', position: 'home_top', sortOrder: 0, isActive: true, platform: 'SF' });
       setPreviews({ desktop: null, mobile: null });
     }
     setFiles({ desktop: null, mobile: null });
@@ -110,6 +112,7 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
         position: formData.position,
         sortOrder: formData.sortOrder,
         isActive: formData.isActive,
+        platform: formData.platform ?? 'SF',
       };
 
       console.log(payload);
@@ -152,6 +155,18 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
                   <SelectItem value="home_top">Home Top (Hero)</SelectItem>
                   <SelectItem value="home_middle">Home Middle</SelectItem>
                   <SelectItem value="category_page">Category Page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Platform</Label>
+              <Select value={formData.platform ?? 'SF'} onValueChange={(val) => setFormData(p => ({ ...p, platform: val as Platform }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SF">SneakersFlash saja</SelectItem>
+                  <SelectItem value="TS">ThunderSports saja</SelectItem>
+                  <SelectItem value="BOTH">Keduanya (SF & TS)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

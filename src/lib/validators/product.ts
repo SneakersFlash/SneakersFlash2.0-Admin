@@ -17,6 +17,7 @@ export const productSchema = z.object({
     description: z.string().optional(),
     basePrice: z.coerce.number().min(0, "Harga dasar minimal 0"),
     weightGrams: z.coerce.number().min(1, "Berat minimal 1 gram"),
+    platform: z.enum(["SF", "TS", "BOTH"]).default("SF"),
     // Nested Array Validation
     variants: z
         .array(productVariantSchema)
