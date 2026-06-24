@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Plus, Search, MoreHorizontal, Pencil, Trash2,
   ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw,
-  FileSpreadsheet, CloudUpload, CloudDownload, Zap, Link2, Warehouse
+  FileSpreadsheet, CloudUpload, CloudDownload, Zap, Link2, Warehouse, PackageSearch
 } from 'lucide-react';
 
 // Ginee warehouse IDs — extracted from Ginee dashboard one-time.
@@ -85,6 +85,24 @@ export default function ProductsPage() {
   const [meta, setMeta]           = useState<Meta | null>(null);
   const [loading, setLoading]     = useState(true);
   const [syncing, setSyncing]     = useState(false);
+
+  // ── Google Sheet sync dialog state ───────────────────────────────────────────
+  const [syncSheetOpen, setSyncSheetOpen]   = useState(false);
+  const [syncSheetName, setSyncSheetName]   = useState('');
+
+  // ── Pull Stock dari Ginee state ──────────────────────────────────────────────
+  const [pullStockOpen, setPullStockOpen]   = useState(false);
+  const [pullStockDryRun, setPullStockDryRun] = useState(true);
+  const [pullingStock, setPullingStock]     = useState(false);
+  const [pullStockResult, setPullStockResult] = useState<{
+    warehousesScanned: number;
+    pagesFetched: number;
+    inventoryRowsScanned: number;
+    variantsUpdated: number;
+    eventVariantsUpdated: number;
+    variantsNotFound: number;
+    dryRun: boolean;
+  } | null>(null);
 
   // ── Ginee Sync All state ─────────────────────────────────────────────────────
   const [syncAllOpen, setSyncAllOpen]   = useState(false);
@@ -176,14 +194,16 @@ export default function ProductsPage() {
   };
 
   // ── Google Sheet sync ─────────────────────────────────────────────────────────
-  // Sync Google Sheet — endpoint sekarang enqueue ke Bull queue (background),
-  // admin polling status setiap 3 detik sampai selesai.
-  const handleSyncGoogleSheet = async () => {
+  const handleSyncGoogleSheet = async (sheetName: string) => {
+    setSyncSheetOpen(false);
     setSyncing(true);
-    const toastId = toast.loading('Queuing job sync Google Sheet...');
+    const label = sheetName.trim() || 'default';
+    const toastId = toast.loading(`Queuing sync sheet "${label}"...`);
 
     try {
-      const enqueueResp = await api.post('/products/sync/google-sheet');
+      const enqueueResp = await api.post('/products/sync/google-sheet', {
+        sheetName: sheetName.trim() || undefined,
+      });
 
       if (!enqueueResp.data.queued) {
         toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
@@ -268,6 +288,88 @@ export default function ProductsPage() {
       toast.error(error.response?.data?.message || 'Sync All gagal', { id: toastId });
     } finally {
       setSyncingAll(false);
+    }
+  };
+
+  // ── Ginee: Pull Stock (Ginee warehouse inventory → local DB) ─────────────────
+  const handlePullStock = async () => {
+    setPullingStock(true);
+    setPullStockResult(null);
+    const toastId = toast.loading('Queuing pull-stock job...');
+
+    try {
+      const enqueueResp = await api.post('/ginee/sync/pull-stock', {
+        warehouseIds: GINEE_WAREHOUSE_IDS,
+        dryRun: pullStockDryRun,
+      });
+
+      if (!enqueueResp.data.queued) {
+        toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
+        setPullingStock(false);
+        return;
+      }
+
+      toast.loading(
+        pullStockDryRun
+          ? 'Dry-run pull-stock berjalan di background. Polling status…'
+          : 'Pull stock berjalan di background (~15-30 menit). Polling status…',
+        { id: toastId },
+      );
+
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 90 * 60 * 1000;
+      const POLL_INTERVAL_MS = 5000;
+
+      while (true) {
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          toast.error('Timeout 90 menit — cek log server.', { id: toastId });
+          break;
+        }
+
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+        const statusResp = await api.get('/ginee/sync/pull-stock/status');
+        const { state, lastResult, lastError } = statusResp.data;
+
+        if (state === 'running' || state === 'waiting') {
+          toast.loading(`Status: ${state}…`, { id: toastId });
+          continue;
+        }
+
+        if (state === 'completed' && lastResult) {
+          setPullStockResult({
+            warehousesScanned: lastResult.warehousesScanned ?? 0,
+            pagesFetched: lastResult.pagesFetched ?? 0,
+            inventoryRowsScanned: lastResult.inventoryRowsScanned ?? 0,
+            variantsUpdated: lastResult.variantsUpdated ?? 0,
+            eventVariantsUpdated: lastResult.eventVariantsUpdated ?? 0,
+            variantsNotFound: lastResult.variantsNotFound ?? 0,
+            dryRun: lastResult.dryRun ?? pullStockDryRun,
+          });
+
+          toast.success(
+            pullStockDryRun
+              ? `Dry run selesai: ${lastResult.variantsUpdated ?? 0} variant akan diupdate`
+              : `Selesai: ${lastResult.variantsUpdated ?? 0} variant (+ ${lastResult.eventVariantsUpdated ?? 0} event) stok diupdate dari Ginee`,
+            { id: toastId, duration: 8000 },
+          );
+
+          if (!pullStockDryRun) fetchProducts();
+          break;
+        }
+
+        if (state === 'failed') {
+          toast.error(`Job gagal: ${lastError ?? 'unknown error'}`, { id: toastId, duration: 10000 });
+          break;
+        }
+
+        toast.warning('Status idle — job mungkin sudah selesai sebelumnya. Klik ulang kalau perlu.', { id: toastId });
+        break;
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal queue pull-stock', { id: toastId });
+    } finally {
+      setPullingStock(false);
     }
   };
 
@@ -513,7 +615,7 @@ export default function ProductsPage() {
           {/* Google Sheet Sync */}
           <Button
             variant="outline"
-            onClick={handleSyncGoogleSheet}
+            onClick={() => { setSyncSheetName(''); setSyncSheetOpen(true); }}
             disabled={syncing || loading}
             className="border-green-600 text-green-700 hover:bg-green-50"
           >
@@ -521,6 +623,17 @@ export default function ProductsPage() {
               ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               : <FileSpreadsheet className="mr-2 h-4 w-4" />}
             {syncing ? 'Syncing...' : 'Sync G-Sheet'}
+          </Button>
+
+          {/* Pull Stock dari Ginee */}
+          <Button
+            variant="outline"
+            onClick={() => { setPullStockResult(null); setPullStockOpen(true); }}
+            disabled={loading}
+            className="border-teal-500 text-teal-600 hover:bg-teal-50"
+          >
+            <PackageSearch className="mr-2 h-4 w-4" />
+            Pull Stock
           </Button>
 
           {/* Ginee Sync All */}
@@ -793,6 +906,163 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* ── SYNC G-SHEET DIALOG ─────────────────────────────────────────────────── */}
+      <Dialog open={syncSheetOpen} onOpenChange={setSyncSheetOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-green-600" />
+              Sync Google Sheet
+            </DialogTitle>
+            <DialogDescription>
+              Masukkan nama sheet yang ingin di-sync. Kosongkan untuk menggunakan sheet default dari server.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="sheet-name">Nama Sheet</Label>
+              <Input
+                id="sheet-name"
+                placeholder="Contoh: data_front, Sheet1, data_ts"
+                value={syncSheetName}
+                onChange={(e) => setSyncSheetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSyncGoogleSheet(syncSheetName); }}
+                autoFocus
+              />
+              <p className="text-xs text-slate-500">
+                Nama sheet harus persis sama (case-sensitive) dengan nama tab di Google Spreadsheet.
+              </p>
+            </div>
+
+            {!syncSheetName.trim() && (
+              <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+                <span className="text-lg leading-none">ℹ️</span>
+                <span>Sheet default dari server akan dipakai (biasanya <code>data_front</code>).</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setSyncSheetOpen(false)} disabled={syncing}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => handleSyncGoogleSheet(syncSheetName)}
+              disabled={syncing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {syncing
+                ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Syncing...</>
+                : <><FileSpreadsheet className="mr-2 h-4 w-4" /> Sync Sekarang</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── PULL STOCK GINEE DIALOG ──────────────────────────────────────────────── */}
+      <Dialog
+        open={pullStockOpen}
+        onOpenChange={(open) => {
+          if (pullingStock) return;
+          setPullStockOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageSearch className="h-5 w-5 text-teal-500" />
+              Pull Stock dari Ginee
+            </DialogTitle>
+            <DialogDescription>
+              Ambil stok terkini dari <strong>{GINEE_WAREHOUSE_IDS.length} warehouse Ginee</strong> dan
+              update <code>stockQuantity</code> + <code>availableStock</code> di local DB.
+              Hanya memperbarui variant yang sudah memiliki <code>gineeSkuId</code>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {pullStockResult && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm space-y-2">
+              <div className="font-semibold text-emerald-900">
+                {pullStockResult.dryRun ? '📋 Preview Hasil' : '✅ Pull Stock Selesai'}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-emerald-800">
+                <div>Warehouse diproses:</div>
+                <div className="font-medium text-right">{pullStockResult.warehousesScanned}</div>
+                <div>Total halaman di-fetch:</div>
+                <div className="font-medium text-right">{pullStockResult.pagesFetched}</div>
+                <div>Baris inventori diproses:</div>
+                <div className="font-medium text-right">{pullStockResult.inventoryRowsScanned}</div>
+                <div>{pullStockResult.dryRun ? 'Akan diupdate:' : 'Variant diupdate:'}</div>
+                <div className="font-medium text-right text-emerald-900">{pullStockResult.variantsUpdated}</div>
+                <div>{pullStockResult.dryRun ? 'Event variant akan diupdate:' : 'Event variant diupdate:'}</div>
+                <div className="font-medium text-right text-emerald-700">{pullStockResult.eventVariantsUpdated}</div>
+                <div>Tidak ada di local DB:</div>
+                <div className="font-medium text-right text-amber-700">{pullStockResult.variantsNotFound}</div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3 py-2">
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-slate-50">
+              <div className="space-y-0.5 pr-4">
+                <Label htmlFor="pull-stock-dry-run" className="text-sm font-medium">
+                  Dry Run (Preview Only)
+                </Label>
+                <p className="text-xs text-slate-500">
+                  Hitung berapa variant yang akan diupdate tanpa mengubah stok. Recommended sebelum live run.
+                </p>
+              </div>
+              <Switch
+                id="pull-stock-dry-run"
+                checked={pullStockDryRun}
+                onCheckedChange={setPullStockDryRun}
+                disabled={pullingStock}
+              />
+            </div>
+
+            {pullingStock && (
+              <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+                <RefreshCw className="h-4 w-4 animate-spin shrink-0 mt-0.5" />
+                <span>
+                  Sedang memproses {GINEE_WAREHOUSE_IDS.length} warehouse. Bisa 15-30 menit.
+                  Tutup tab boleh — job tetap jalan di background.
+                </span>
+              </div>
+            )}
+
+            {!pullStockDryRun && !pullingStock && (
+              <div className="flex gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm text-teal-700">
+                <span className="text-lg leading-none">ℹ️</span>
+                <span>
+                  Mode live — akan update <code>stockQuantity</code> dan <code>availableStock</code> sesuai
+                  stok terkini di Ginee. Inventory log akan dicatat otomatis.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPullStockOpen(false)} disabled={pullingStock}>
+              Tutup
+            </Button>
+            <Button
+              onClick={handlePullStock}
+              disabled={pullingStock}
+              className={pullStockDryRun ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'}
+            >
+              {pullingStock
+                ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                : pullStockDryRun
+                  ? <><Search className="mr-2 h-4 w-4" /> Preview</>
+                  : <><PackageSearch className="mr-2 h-4 w-4" /> Pull Stock Sekarang</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── SYNC ALL GINEE DIALOG ────────────────────────────────────────────────── */}
       <Dialog open={syncAllOpen} onOpenChange={setSyncAllOpen}>
