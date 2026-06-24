@@ -36,23 +36,38 @@ export const tokenStore = {
   },
 };
 
+// ─── Platform Store ───────────────────────────────────────────────────────────
+
+export const ADMIN_PLATFORM_KEY = 'admin-platform';
+
+export const platformStore = {
+  get: (): 'SF' | 'TS' => {
+    if (typeof window === 'undefined') return 'SF';
+    return (localStorage.getItem(ADMIN_PLATFORM_KEY) as 'SF' | 'TS') ?? 'SF';
+  },
+  set: (platform: 'SF' | 'TS') => {
+    localStorage.setItem(ADMIN_PLATFORM_KEY, platform);
+    window.dispatchEvent(new CustomEvent('platform-change', { detail: platform }));
+  },
+};
+
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json', 'X-Platform': 'SF' },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });
 
-// ─── Request Interceptor: Inject JWT ──────────────────────────────────────────
+// ─── Request Interceptor: Inject JWT + X-Platform ────────────────────────────
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = tokenStore.getAccess();
     if (token) {
-      // PERBAIKAN: Menggunakan method .set() untuk AxiosHeaders
       config.headers.set('Authorization', `Bearer ${token}`);
     }
+    config.headers.set('X-Platform', platformStore.get());
     return config;
   },
   (error) => Promise.reject(error),

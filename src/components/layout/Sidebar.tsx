@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, CreditCard,
   Truck, Ticket, Warehouse, Megaphone, Bell, Users, LogOut,
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { platformStore } from '@/lib/api';
 
 // ─── Icon Map ─────────────────────────────────────────────────────────────────
 
@@ -62,6 +64,23 @@ export default function Sidebar({
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  const [platform, setPlatform] = useState<'SF' | 'TS'>('SF');
+
+  useEffect(() => {
+    setPlatform(platformStore.get());
+    const handler = (e: Event) => setPlatform((e as CustomEvent).detail);
+    window.addEventListener('platform-change', handler);
+    return () => window.removeEventListener('platform-change', handler);
+  }, []);
+
+  const switchPlatform = (p: 'SF' | 'TS') => {
+    if (p === platform) return;
+    platformStore.set(p);
+    window.location.reload();
+  };
+
+  const isSF = platform === 'SF';
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -82,12 +101,22 @@ export default function Sidebar({
         {/* Brand Header */}
         <div className="h-16 flex items-center justify-between px-6 bg-gray-950/50 backdrop-blur-md border-b border-gray-800">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-gray-950 font-bold text-xl leading-none tracking-tighter">S</span>
-              <span className="text-gray-950 font-bold text-xl leading-none tracking-tighter">F</span>
+            <div className={cn(
+              'w-8 h-8 rounded-lg flex items-center justify-center',
+              isSF ? 'bg-white' : 'bg-blue-500'
+            )}>
+              <span className={cn('font-bold text-xl leading-none tracking-tighter', isSF ? 'text-gray-950' : 'text-white')}>
+                {isSF ? 'S' : 'T'}
+              </span>
+              <span className={cn('font-bold text-xl leading-none tracking-tighter', isSF ? 'text-gray-950' : 'text-white')}>
+                {isSF ? 'F' : 'S'}
+              </span>
             </div>
             <span className="text-white font-bold tracking-tight text-lg">
-              Sneaker<span className="text-gray-400">Flash</span>
+              {isSF
+                ? <>Sneaker<span className="text-gray-400">Flash</span></>
+                : <>Thunder<span className="text-blue-400">Sports</span></>
+              }
             </span>
           </Link>
           <Button
@@ -98,6 +127,37 @@ export default function Sidebar({
           >
             <X className="h-5 w-5" />
           </Button>
+        </div>
+
+        {/* Platform Switcher */}
+        <div className="px-4 py-3 border-b border-gray-800 bg-gray-900/40">
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Platform Aktif</p>
+          <div className="flex gap-1.5 p-1 bg-gray-900 rounded-lg">
+            <button
+              onClick={() => switchPlatform('SF')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all',
+                isSF
+                  ? 'bg-white text-gray-950 shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              )}
+            >
+              <span className={cn('w-2 h-2 rounded-full', isSF ? 'bg-green-500' : 'bg-gray-600')} />
+              SneakersFlash
+            </button>
+            <button
+              onClick={() => switchPlatform('TS')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all',
+                !isSF
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              )}
+            >
+              <span className={cn('w-2 h-2 rounded-full', !isSF ? 'bg-blue-300' : 'bg-gray-600')} />
+              ThunderSports
+            </button>
+          </div>
         </div>
 
         {/* Navigation Grouped */}

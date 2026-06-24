@@ -48,6 +48,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import PlatformBadge from '@/components/shared/PlatformBadge';
+import { platformStore } from '@/lib/api';
 
 interface ProductVariant {
   id: string;
@@ -134,6 +135,7 @@ export default function ProductsPage() {
   const [limit, setLimit]         = useState(10);
   const [sortBy, setSortBy]       = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [platformFilter, setPlatformFilter] = useState<'ALL' | 'SF' | 'TS'>(() => platformStore.get());
   const [debouncedSearch, setDebouncedSearch] = useState(search);
 
   useEffect(() => {
@@ -146,7 +148,7 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const response = await api.get('/products', {
-        params: { page, limit, search: debouncedSearch, sortBy, sortOrder },
+        params: { page, limit, search: debouncedSearch, sortBy, sortOrder, platform: platformFilter },
       });
       const responseData = response.data;
       if (responseData.data && Array.isArray(responseData.data)) {
@@ -160,7 +162,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, sortBy, sortOrder]);
+  }, [page, limit, debouncedSearch, sortBy, sortOrder, platformFilter]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -591,6 +593,15 @@ export default function ProductsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <select
+          className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={platformFilter}
+          onChange={(e) => { setPlatformFilter(e.target.value as 'ALL' | 'SF' | 'TS'); setPage(1); }}
+        >
+          <option value="ALL">Semua Platform</option>
+          <option value="SF">SF Only</option>
+          <option value="TS">TS Only</option>
+        </select>
         <select
           className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={limit}
