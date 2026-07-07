@@ -89,10 +89,6 @@ export default function ProductsPage() {
   const [loading, setLoading]     = useState(true);
   const [syncing, setSyncing]     = useState<'SF' | 'TS' | false>(false);
 
-  // ── Google Sheet sync dialog state ───────────────────────────────────────────
-  const [syncSheetOpen, setSyncSheetOpen]   = useState(false);
-  const [syncSheetName, setSyncSheetName]   = useState('');
-
   // ── Pull Stock dari Ginee state ──────────────────────────────────────────────
   const [pullStockOpen, setPullStockOpen]   = useState(false);
   const [pullStockDryRun, setPullStockDryRun] = useState(true);
@@ -936,61 +932,6 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
-
-      {/* ── SYNC G-SHEET DIALOG ─────────────────────────────────────────────────── */}
-      <Dialog open={syncSheetOpen} onOpenChange={setSyncSheetOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-green-600" />
-              Sync Google Sheet
-            </DialogTitle>
-            <DialogDescription>
-              Masukkan nama sheet yang ingin di-sync. Kosongkan untuk menggunakan sheet default dari server.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="sheet-name">Nama Sheet</Label>
-              <Input
-                id="sheet-name"
-                placeholder="Contoh: data_front, Sheet1, data_ts"
-                value={syncSheetName}
-                onChange={(e) => setSyncSheetName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSyncGoogleSheet(syncSheetName); }}
-                autoFocus
-              />
-              <p className="text-xs text-slate-500">
-                Nama sheet harus persis sama (case-sensitive) dengan nama tab di Google Spreadsheet.
-              </p>
-            </div>
-
-            {!syncSheetName.trim() && (
-              <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-                <span className="text-lg leading-none">ℹ️</span>
-                <span>Sheet default dari server akan dipakai (biasanya <code>data_front</code>).</span>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setSyncSheetOpen(false)} disabled={syncing}>
-              Batal
-            </Button>
-            <Button
-              onClick={() => handleSyncGoogleSheet(syncSheetName)}
-              disabled={syncing}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {syncing
-                ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Syncing...</>
-                : <><FileSpreadsheet className="mr-2 h-4 w-4" /> Sync Sekarang</>
-              }
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ── PULL STOCK GINEE DIALOG ──────────────────────────────────────────────── */}
       <Dialog
