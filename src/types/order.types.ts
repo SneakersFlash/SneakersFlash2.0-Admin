@@ -64,6 +64,7 @@ export interface Order {
   id: string;
   orderNumber: string;
   status: OrderStatus;
+  storefront?: 'SF' | 'TS' | null;
   paymentMethod: PaymentMethod;
   voucherCode?: string | null;
 

@@ -47,6 +47,8 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import PlatformBadge from '@/components/shared/PlatformBadge';
+import { platformStore } from '@/lib/api';
 
 interface ProductVariant {
   id: string;
@@ -62,6 +64,7 @@ interface Product {
   slug: string;
   basePrice: number;
   isActive: boolean;
+  platform?: 'SF' | 'TS' | 'BOTH' | null;
   gineeProductId?: string | null;
   gineeSyncStatus?: 'synced' | 'pending' | 'failed' | null;
   brand?: { name: string };
@@ -84,7 +87,7 @@ export default function ProductsPage() {
   const [products, setProducts]   = useState<Product[]>([]);
   const [meta, setMeta]           = useState<Meta | null>(null);
   const [loading, setLoading]     = useState(true);
-  const [syncing, setSyncing]     = useState(false);
+  const [syncing, setSyncing]     = useState<'SF' | 'TS' | false>(false);
 
   // ── Google Sheet sync dialog state ───────────────────────────────────────────
   const [syncSheetOpen, setSyncSheetOpen]   = useState(false);
@@ -150,6 +153,7 @@ export default function ProductsPage() {
   const [limit, setLimit]         = useState(10);
   const [sortBy, setSortBy]       = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [platformFilter, setPlatformFilter] = useState<'ALL' | 'SF' | 'TS'>(() => platformStore.get());
   const [debouncedSearch, setDebouncedSearch] = useState(search);
 
   useEffect(() => {
@@ -162,7 +166,7 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const response = await api.get('/products', {
-        params: { page, limit, search: debouncedSearch, sortBy, sortOrder },
+        params: { page, limit, search: debouncedSearch, sortBy, sortOrder, platform: platformFilter },
       });
       const responseData = response.data;
       if (responseData.data && Array.isArray(responseData.data)) {
@@ -176,7 +180,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, sortBy, sortOrder]);
+  }, [page, limit, debouncedSearch, sortBy, sortOrder, platformFilter]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -194,16 +198,14 @@ export default function ProductsPage() {
   };
 
   // ── Google Sheet sync ─────────────────────────────────────────────────────────
-  const handleSyncGoogleSheet = async (sheetName: string) => {
-    setSyncSheetOpen(false);
-    setSyncing(true);
-    const label = sheetName.trim() || 'default';
-    const toastId = toast.loading(`Queuing sync sheet "${label}"...`);
+  // Sync Google Sheet — endpoint sekarang enqueue ke Bull queue (background),
+  // admin polling status setiap 3 detik sampai selesai.
+  const handleSyncGoogleSheet = async (platform: 'SF' | 'TS') => {
+    setSyncing(platform);
+    const toastId = toast.loading(`Queuing job sync Google Sheet [${platform}]...`);
 
     try {
-      const enqueueResp = await api.post('/products/sync/google-sheet', {
-        sheetName: sheetName.trim() || undefined,
-      });
+      const enqueueResp = await api.post(`/products/sync/google-sheet?platform=${platform}`);
 
       if (!enqueueResp.data.queued) {
         toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
@@ -612,17 +614,30 @@ export default function ProductsPage() {
           <p className="text-sm text-slate-500">Kelola katalog dan stok sepatu Anda.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* Google Sheet Sync */}
+          {/* Google Sheet Sync SF */}
           <Button
             variant="outline"
-            onClick={() => { setSyncSheetName(''); setSyncSheetOpen(true); }}
-            disabled={syncing || loading}
+            onClick={() => handleSyncGoogleSheet('SF')}
+            disabled={syncing !== false || loading}
             className="border-green-600 text-green-700 hover:bg-green-50"
           >
-            {syncing
+            {syncing === 'SF'
               ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-            {syncing ? 'Syncing...' : 'Sync G-Sheet'}
+            {syncing === 'SF' ? 'Syncing SF...' : 'Sync SF'}
+          </Button>
+
+          {/* Google Sheet Sync TS */}
+          <Button
+            variant="outline"
+            onClick={() => handleSyncGoogleSheet('TS')}
+            disabled={syncing !== false || loading}
+            className="border-blue-600 text-blue-700 hover:bg-blue-50"
+          >
+            {syncing === 'TS'
+              ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              : <FileSpreadsheet className="mr-2 h-4 w-4" />}
+            {syncing === 'TS' ? 'Syncing TS...' : 'Sync TS'}
           </Button>
 
           {/* Pull Stock dari Ginee */}
@@ -691,6 +706,15 @@ export default function ProductsPage() {
         </div>
         <select
           className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={platformFilter}
+          onChange={(e) => { setPlatformFilter(e.target.value as 'ALL' | 'SF' | 'TS'); setPage(1); }}
+        >
+          <option value="ALL">Semua Platform</option>
+          <option value="SF">SF Only</option>
+          <option value="TS">TS Only</option>
+        </select>
+        <select
+          className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={limit}
           onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
         >
@@ -715,6 +739,7 @@ export default function ProductsPage() {
                 </th>
                 <th className="px-6 py-4">Stock</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Platform</th>
                 <th className="px-6 py-4">Ginee</th>
                 <th className="px-6 py-4 text-right">Action</th>
               </tr>
@@ -723,14 +748,14 @@ export default function ProductsPage() {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={7} className="px-6 py-4">
+                    <td colSpan={8} className="px-6 py-4">
                       <div className="h-8 bg-slate-100 rounded animate-pulse w-full" />
                     </td>
                   </tr>
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center">
                       <Search className="h-8 w-8 text-slate-300 mb-2" />
                       <p>Produk tidak ditemukan.</p>
@@ -805,6 +830,11 @@ export default function ProductsPage() {
                         }`}>
                           {product.totalStock > 0 ? 'Active' : 'Out of Stock'}
                         </span>
+                      </td>
+
+                      {/* Platform */}
+                      <td className="px-6 py-4">
+                        <PlatformBadge platform={product.platform} />
                       </td>
 
                       {/* Ginee Status Badge */}

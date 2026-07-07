@@ -1,3 +1,5 @@
+export type Platform = 'SF' | 'TS' | 'BOTH';
+
 export type BannerPosition = 'home_top' | 'home_middle' | 'category_page';
 
 export interface Banner {
@@ -9,6 +11,7 @@ export interface Banner {
   position: BannerPosition;
   sortOrder: number;
   isActive: boolean;
+  platform: Platform;
   startAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +25,7 @@ export interface CreateBannerPayload {
   position: BannerPosition;
   sortOrder?: number;
   isActive?: boolean;
+  platform?: Platform;
 }
 
 // ─── Blog ─────────────────────────────────────────────────────────────────────
@@ -54,6 +58,7 @@ export interface BlogPost {
   id: string | number;
   categoryId: string | number;
   authorId: string | number;
+  platform: Platform;
   title: string;
   slug: string;
   excerpt?: string | null;
@@ -82,6 +87,7 @@ export interface BlogPostListResponse {
 export interface CreateBlogPostPayload {
   title: string;
   slug: string;
+  platform?: Platform;
   excerpt?: string;
   contentHtml?: string;
   thumbnailUrl?: string;

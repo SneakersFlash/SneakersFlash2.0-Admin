@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { getErrorMessage } from '@/lib/api';
 import BannerModal from '@/components/module/banner/BannerModal';
+import PlatformBadge from '@/components/shared/PlatformBadge';
 
 export default function BannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -94,6 +95,7 @@ export default function BannersPage() {
               <tr>
                 <th className="px-6 py-4 font-medium w-48">Gambar Desktop</th>
                 <th className="px-6 py-4 font-medium">Informasi Banner</th>
+                <th className="px-6 py-4 font-medium text-center">Platform</th>
                 <th className="px-6 py-4 font-medium text-center">Posisi & Urutan</th>
                 <th className="px-6 py-4 font-medium text-center">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Aksi</th>
@@ -102,11 +104,11 @@ export default function BannersPage() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Memuat data banner...</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Memuat data banner...</td>
                 </tr>
               ) : banners.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Belum ada banner yang ditambahkan.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Belum ada banner yang ditambahkan.</td>
                 </tr>
               ) : (
                 banners.map((banner) => (
@@ -151,7 +153,12 @@ export default function BannersPage() {
                       </div>
                     </td>
 
-                    {/* Kolom 3: Posisi dan Urutan Sortir */}
+                    {/* Kolom 3: Platform */}
+                    <td className="px-6 py-4 text-center">
+                      <PlatformBadge platform={banner.platform} />
+                    </td>
+
+                    {/* Kolom 4: Posisi dan Urutan Sortir */}
                     <td className="px-6 py-4 text-center space-y-2">
                       <div>
                         <Badge variant="outline" className="bg-gray-50">

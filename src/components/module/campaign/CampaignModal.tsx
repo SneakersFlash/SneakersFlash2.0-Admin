@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CampaignsService from '@/services/campaigns.service';
 import api, { getErrorMessage } from '@/lib/api';
-import type { CampaignEvent, CreateCampaignPayload } from '@/types/marketing.types';
+import type { CampaignEvent, CreateCampaignPayload, Platform } from '@/types/marketing.types';
 
 interface CampaignModalProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
     isActive: true,
     isTimer: true,
     sort: 0,
+    platform: 'SF',
     metaTitle: '',
     metaDescription: '',
     ogImageUrl: '',
@@ -66,6 +68,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
         isActive: initialData.isActive,
         isTimer: initialData.isTimer,
         sort: initialData.sort,
+        platform: initialData.platform ?? 'SF',
         metaTitle: initialData.metaTitle || '',
         metaDescription: initialData.metaDescription || '',
         ogImageUrl: initialData.ogImageUrl || '',
@@ -197,6 +200,18 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                 <Input type="color" value={formData.styleConfig?.backgroundColor || '#ffffff'} onChange={handleColorChange} className="w-16 h-10 p-1 cursor-pointer" />
                 <span className="text-sm font-mono text-gray-500">{formData.styleConfig?.backgroundColor || '#ffffff'}</span>
               </div>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label>Platform</Label>
+              <Select value={formData.platform ?? 'SF'} onValueChange={(val) => setFormData(p => ({ ...p, platform: val as Platform }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SF">SneakersFlash saja</SelectItem>
+                  <SelectItem value="TS">ThunderSports saja</SelectItem>
+                  <SelectItem value="BOTH">Keduanya (SF & TS)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2 md:col-span-2 flex items-center justify-between p-3 border rounded-lg bg-gray-50">

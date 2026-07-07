@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { getErrorMessage } from '@/lib/api';
 import CampaignModal from '@/components/module/campaign/CampaignModal';
+import PlatformBadge from '@/components/shared/PlatformBadge';
 import { useRouter } from 'next/navigation';
 
 export default function CampaignsWrapper() {
@@ -125,6 +126,7 @@ export default function CampaignsWrapper() {
             <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
               <tr>
                 <th className="px-6 py-4 font-medium">Info Kampanye</th>
+                <th className="px-6 py-4 font-medium text-center">Platform</th>
                 <th className="px-6 py-4 font-medium text-center">Jadwal Event</th>
                 <th className="px-6 py-4 font-medium text-center">Status Periode</th>
                 <th className="px-6 py-4 font-medium text-center">Tampilkan?</th>
@@ -133,9 +135,9 @@ export default function CampaignsWrapper() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Memuat data kampanye...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Memuat data kampanye...</td></tr>
               ) : campaigns.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Belum ada kampanye.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Belum ada kampanye.</td></tr>
               ) : (
                 campaigns.map((camp) => (
                   <tr key={camp.id} className="hover:bg-gray-50/50 transition-colors">
@@ -148,6 +150,10 @@ export default function CampaignsWrapper() {
                       <div className="text-xs text-gray-400 pt-1">
                         Berisi <span className="font-bold text-gray-700">{camp._count?.eventProducts || 0}</span> Produk
                       </div>
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      <PlatformBadge platform={camp.platform} />
                     </td>
 
                     <td className="px-6 py-4">
