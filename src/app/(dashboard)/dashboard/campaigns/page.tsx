@@ -253,7 +253,7 @@ export default function CampaignsWrapper() {
                   onChange={(e) => setSheetUrl(e.target.value)}
                   disabled={isSyncing}
                 />
-                <p className="text-xs text-gray-500">Pastikan akses Sheet diatur ke "Viewer" untuk Service Account Anda.</p>
+                <p className="text-xs text-gray-500">Pastikan akses Sheet diatur ke &quot;Viewer&quot; untuk Service Account Anda.</p>
               </div>
 
               <div className="space-y-2">
@@ -266,7 +266,7 @@ export default function CampaignsWrapper() {
                   onChange={(e) => setSheetName(e.target.value)}
                   disabled={isSyncing}
                 />
-                <p className="text-xs text-gray-500">Isi jika nama *tab* Sheet Anda bukan "Sheet1".</p>
+                <p className="text-xs text-gray-500">Isi jika nama *tab* Sheet Anda bukan &quot;Sheet1&quot;.</p>
               </div>
 
               <div className="space-y-2">
