@@ -195,9 +195,12 @@ export default function CampaignsWrapper() {
                           size="icon" 
                           className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50" 
                           title="Sync Produk dari Google Sheet"
-                          onClick={() => { 
-                            setSyncCampaignId(camp.id); 
-                            setIsSyncModalOpen(true); 
+                          onClick={() => {
+                            setSyncCampaignId(camp.id);
+                            // Prefill prefix yang sudah dipakai kampanye ini. Kalau diubah,
+                            // varian lama tidak ikut ter-rename dan lepas dari mapping Ginee.
+                            setSkuPrefix(camp.skuPrefix ?? '');
+                            setIsSyncModalOpen(true);
                           }}
                         >
                           <FileSpreadsheet className="h-4 w-4" />
@@ -272,14 +275,15 @@ export default function CampaignsWrapper() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">SKU Prefix</label>
                 <input 
-                  type="text" 
-                  placeholder="Sheet1"
+                  type="text"
+                  placeholder="LC"
                   className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                   value={skuPrefix}
                   onChange={(e) => setSkuPrefix(e.target.value)}
                   disabled={isSyncing}
                 />
-                <p className="text-xs text-gray-500">Isi untuk kebutuhan prefix SKU (LS-1292.....).</p>
+                <p className="text-xs text-gray-500">Prefix SKU produk event — SKU varian jadi <code>LC-196307583015</code>. Huruf &amp; angka, maks 10 karakter.</p>
+                <p className="text-xs text-amber-600">Jangan diubah kalau kampanye ini sudah pernah di-sync: produk lama tetap memakai prefix lama dan akan lepas dari sinkronisasi stok Ginee.</p>
               </div>
 
               <div className="pt-4 flex justify-end gap-2">

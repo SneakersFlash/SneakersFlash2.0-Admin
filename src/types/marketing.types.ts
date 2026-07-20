@@ -14,6 +14,8 @@ export interface CampaignEvent {
   isTimer: boolean;
   sort: number;
   platform: Platform;
+  /** Prefix SKU produk event ("LC" → varian jadi "LC-196307583015"). Diisi backend saat sync sheet. */
+  skuPrefix?: string | null;
   metaTitle: string;
   metaDescription: string;
   ogImageUrl: string;
