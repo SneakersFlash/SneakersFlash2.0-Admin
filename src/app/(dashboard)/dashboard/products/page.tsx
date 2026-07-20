@@ -88,6 +88,9 @@ export default function ProductsPage() {
   const [meta, setMeta]           = useState<Meta | null>(null);
   const [loading, setLoading]     = useState(true);
   const [syncing, setSyncing]     = useState<'SF' | 'TS' | false>(false);
+  // Dialog nama sheet sebelum sync — kosong berarti pakai sheet default dari env backend.
+  const [sheetPromptPlatform, setSheetPromptPlatform] = useState<'SF' | 'TS' | null>(null);
+  const [sheetNameInput, setSheetNameInput] = useState('');
 
   // ── Pull Stock dari Ginee state ──────────────────────────────────────────────
   const [pullStockOpen, setPullStockOpen]   = useState(false);
@@ -196,12 +199,16 @@ export default function ProductsPage() {
   // ── Google Sheet sync ─────────────────────────────────────────────────────────
   // Sync Google Sheet — endpoint sekarang enqueue ke Bull queue (background),
   // admin polling status setiap 3 detik sampai selesai.
-  const handleSyncGoogleSheet = async (platform: 'SF' | 'TS') => {
+  const handleSyncGoogleSheet = async (platform: 'SF' | 'TS', sheetName?: string) => {
     setSyncing(platform);
     const toastId = toast.loading(`Queuing job sync Google Sheet [${platform}]...`);
 
     try {
-      const enqueueResp = await api.post(`/products/sync/google-sheet?platform=${platform}`);
+      // sheetName sengaja tidak dikirim kalau kosong → backend pakai sheet default.
+      const trimmed = sheetName?.trim();
+      const url = `/products/sync/google-sheet?platform=${platform}`
+        + (trimmed ? `&sheetName=${encodeURIComponent(trimmed)}` : '');
+      const enqueueResp = await api.post(url);
 
       if (!enqueueResp.data.queued) {
         toast.warning(enqueueResp.data.message ?? 'Job tidak bisa di-queue', { id: toastId });
@@ -613,7 +620,7 @@ export default function ProductsPage() {
           {/* Google Sheet Sync SF */}
           <Button
             variant="outline"
-            onClick={() => handleSyncGoogleSheet('SF')}
+            onClick={() => { setSheetNameInput(''); setSheetPromptPlatform('SF'); }}
             disabled={syncing !== false || loading}
             className="border-green-600 text-green-700 hover:bg-green-50"
           >
@@ -626,7 +633,7 @@ export default function ProductsPage() {
           {/* Google Sheet Sync TS */}
           <Button
             variant="outline"
-            onClick={() => handleSyncGoogleSheet('TS')}
+            onClick={() => { setSheetNameInput(''); setSheetPromptPlatform('TS'); }}
             disabled={syncing !== false || loading}
             className="border-blue-600 text-blue-700 hover:bg-blue-50"
           >
@@ -1036,6 +1043,66 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* ── SYNC ALL GINEE DIALOG ────────────────────────────────────────────────── */}
+      {/* Dialog: pilih nama tab sheet sebelum sync produk reguler (SF / TS) */}
+      <Dialog
+        open={sheetPromptPlatform !== null}
+        onOpenChange={(open) => { if (!open) setSheetPromptPlatform(null); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-green-600" />
+              Sync Produk Reguler [{sheetPromptPlatform}]
+            </DialogTitle>
+            <DialogDescription>
+              Tentukan tab sheet yang mau dipakai. Ini hanya untuk produk reguler —
+              produk event/kampanye disinkronkan lewat menu Campaigns.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="sheet-name" className="text-sm font-medium">
+              Nama Tab Sheet <span className="text-slate-400 font-normal">(opsional)</span>
+            </Label>
+            <Input
+              id="sheet-name"
+              value={sheetNameInput}
+              onChange={(e) => setSheetNameInput(e.target.value)}
+              placeholder="data_front"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && sheetPromptPlatform) {
+                  const p = sheetPromptPlatform;
+                  setSheetPromptPlatform(null);
+                  void handleSyncGoogleSheet(p, sheetNameInput);
+                }
+              }}
+            />
+            <p className="text-xs text-slate-500">
+              Kosongkan untuk memakai sheet default yang sudah dikonfigurasi di server.
+              Spreadsheet-nya sendiri tetap yang sudah diset per platform.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSheetPromptPlatform(null)}>
+              Batal
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => {
+                if (!sheetPromptPlatform) return;
+                const p = sheetPromptPlatform;
+                setSheetPromptPlatform(null);
+                void handleSyncGoogleSheet(p, sheetNameInput);
+              }}
+            >
+              {sheetNameInput.trim() ? 'Sync Sheet Ini' : 'Sync Sheet Default'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={syncAllOpen} onOpenChange={setSyncAllOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
