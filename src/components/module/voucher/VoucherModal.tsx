@@ -50,6 +50,8 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
     startAt: '',
     expiresAt: '',
     isActive: true,
+    // Default false: voucher fisik / kode offline tidak boleh nongol di storefront.
+    isPubliclyClaimable: false,
     // Bulk Fields
     quantity: 10,
     prefix: 'PROMO',
@@ -74,6 +76,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
         startAt: formatForInput(initialData.startAt),
         expiresAt: formatForInput(initialData.expiresAt),
         isActive: initialData.isActive,
+        isPubliclyClaimable: initialData.isPubliclyClaimable ?? false,
       }));
     } else {
       setFormData({ 
@@ -81,6 +84,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
         code: '', name: '', description: '', discountType: 'percentage', 
         discountValue: 0, maxDiscountAmount: undefined, minPurchaseAmount: 0, 
         usageLimitTotal: undefined, usageLimitPerUser: 1, startAt: '', expiresAt: '', isActive: true,
+        isPubliclyClaimable: false,
         quantity: 10, prefix: 'PROMO', codeLength: 8
       });
     }
@@ -134,6 +138,7 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
             startAt: new Date(formData.startAt).toISOString(),
             expiresAt: new Date(formData.expiresAt).toISOString(),
             isActive: formData.isActive,
+            isPubliclyClaimable: formData.isPubliclyClaimable,
             quantity: formData.quantity,
             prefix: formData.prefix,
             codeLength: formData.codeLength,
@@ -289,6 +294,18 @@ export default function VoucherModal({ isOpen, onClose, onSuccess, initialData, 
                 <p className="text-xs text-gray-500">Aktifkan agar voucher bisa di-klaim.</p>
               </div>
               <Switch checked={formData.isActive} onCheckedChange={(checked) => setFormData(p => ({...p, isActive: checked}))} />
+            </div>
+
+            <div className="space-y-2 col-span-2 flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+              <div className="space-y-0.5">
+                <Label>Tampilkan di Storefront</Label>
+                <p className="text-xs text-gray-500">
+                  Voucher muncul di daftar klaim home page dan bisa diklaim siapa saja.
+                  Matikan untuk voucher fisik / kode yang dibagikan offline — kodenya
+                  tetap bisa diketik manual saat checkout.
+                </p>
+              </div>
+              <Switch checked={formData.isPubliclyClaimable} onCheckedChange={(checked) => setFormData(p => ({...p, isPubliclyClaimable: checked}))} />
             </div>
           </div>
 

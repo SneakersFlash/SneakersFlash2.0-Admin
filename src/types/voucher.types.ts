@@ -16,6 +16,8 @@ export interface Voucher {
   startAt: string;
   expiresAt: string;
   isActive: boolean;
+  /** Tampil di daftar klaim storefront. False = voucher fisik/kode offline. */
+  isPubliclyClaimable?: boolean;
   createdAt: string;
 }
 
@@ -33,6 +35,7 @@ export interface CreateVoucherPayload {
   startAt: string;
   expiresAt: string;
   isActive?: boolean;
+  isPubliclyClaimable?: boolean;
 }
 
 export interface CreateBulkVoucherPayload extends Omit<CreateVoucherPayload, 'code'> {
