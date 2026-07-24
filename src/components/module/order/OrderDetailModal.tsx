@@ -31,7 +31,12 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const [komerceStatus, setKomerceStatus] = useState<{ driverName?: string; driverPhone?: string } | null>(null);
 
   useEffect(() => {
-    if (order?.awbTrackingNumber) {
+    // `awb` = resi kurir asli (terisi saat pickup). Didahulukan supaya prefill
+    // tidak keisi order_no Komerce ("KOM...") yang bukan resi dan ikut tersimpan
+    // saat admin menandai pesanan dikirim.
+    if (order?.awb) {
+      setTrackingNumber(order.awb);
+    } else if (order?.awbTrackingNumber) {
       setTrackingNumber(order.awbTrackingNumber);
     } else if (order?.trackingNumber) {
       setTrackingNumber(order.trackingNumber);
