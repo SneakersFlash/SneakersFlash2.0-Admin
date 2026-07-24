@@ -140,6 +140,21 @@ const OrdersService = {
   },
 
   /**
+   * Lepas booking kurir di Komerce TANPA membatalkan ordernya.
+   * Dipakai saat GoSend/Grab kelamaan dapat driver — pesanan tetap jalan,
+   * barang dikirim manual, ongkir tetap dari kalkulasi Komerce.
+   */
+  async cancelKomerceBooking(id: string): Promise<{
+    message: string;
+    komerceOrderId: string;
+    orderStatus: string;
+    komerceMessage: string;
+  }> {
+    const { data } = await api.patch(`/orders/${id}/cancel-shipping`);
+    return data;
+  },
+
+  /**
    * Export orders ke CSV dan trigger download otomatis di browser.
    * Filter: status, search, dateFrom, dateTo.
    */

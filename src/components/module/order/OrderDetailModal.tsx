@@ -231,6 +231,22 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
   };
 
+  // Lepas booking Komerce tapi pesanan tetap jalan — dipakai kalau
+  // GoSend/Grab kelamaan dapat driver dan barang mau dikirim manual.
+  const handleCancelKomerceBooking = async () => {
+    if (!window.confirm('Batalkan booking kurir di Komerce? Pesanan TIDAK ikut dibatalkan — barang harus dikirim manual.')) return;
+    try {
+      setIsProcessing(true);
+      const res = await OrdersService.cancelKomerceBooking(String(order.id));
+      toast.success(res.message || 'Booking kurir dibatalkan');
+      onRefresh();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleCancelOrder = async () => {
     if (!cancelReason.trim()) return toast.error('Alasan pembatalan wajib diisi!');
     try {
@@ -398,6 +414,16 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                         <Truck className="w-4 h-4 mr-2" /> Tandai Dikirim
                       </Button>
                     </div>
+                    {order.komerceOrderId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelKomerceBooking}
+                        disabled={isProcessing}
+                        className="text-xs text-red-600 hover:underline disabled:opacity-50 self-start"
+                      >
+                        Driver kelamaan? Lepas booking {courierUpper} (pesanan tetap jalan, kirim manual)
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>
@@ -705,10 +731,16 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
             </div>
           )}
 
-          {/* ZONA PEMBATALAN */}
-          {['pending', 'waiting_payment', 'paid'].includes(order.status) && (
+          {/* ZONA PEMBATALAN
+              'processing' ikut karena order yang sudah dibooking ke Komerce
+              statusnya processing — pembatalan di sini otomatis melepas
+              booking kurirnya juga. */}
+          {['pending', 'waiting_payment', 'paid', 'processing'].includes(order.status) && (
             <div className="mt-6 pt-4 border-t border-dashed">
               <p className="text-xs font-bold text-red-600 mb-2">Zona Bahaya: Pembatalan</p>
+              {order.komerceOrderId && (
+                <p className="text-xs text-gray-500 mb-2">Booking kurir di Komerce ikut dibatalkan otomatis.</p>
+              )}
               <div className="flex gap-2">
                 <Input placeholder="Alasan pembatalan (misal: Stok Habis)..." value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
                 <Button variant="destructive" onClick={handleCancelOrder} disabled={isProcessing || !cancelReason}>Batalkan Pesanan</Button>
