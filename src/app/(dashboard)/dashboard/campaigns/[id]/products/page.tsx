@@ -32,7 +32,15 @@ export default function EventProductsDetailPage() {
     const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
     const [sheetUrl, setSheetUrl] = useState('');
     const [sheetName, setSheetName] = useState('Sheet1');
+    const [skuPrefix, setSkuPrefix] = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
+
+    // Buka modal sync dengan prefix SKU yang sudah dipakai event ini (kalau sudah
+    // pernah di-sync), supaya admin tidak salah ketik prefix baru.
+    const openSyncModal = () => {
+        setSkuPrefix(eventInfo?.skuPrefix ?? '');
+        setIsSyncModalOpen(true);
+    };
 
     const fetchEventData = useCallback(async () => {
         setIsLoading(true);
@@ -97,11 +105,11 @@ export default function EventProductsDetailPage() {
 
     const handleSyncSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!sheetUrl) return;
+        if (!sheetUrl || !skuPrefix) return;
 
         try {
             setIsSyncing(true);
-            const response = await CampaignsService.syncFromSheet(eventId, { sheetUrl, sheetName });
+            const response = await CampaignsService.syncFromSheet(eventId, { sheetUrl, sheetName, skuPrefix });
             
             toast.success(response.message);
             if (response.warning) toast.warning(response.warning, { duration: 8000 });
@@ -127,7 +135,7 @@ export default function EventProductsDetailPage() {
             description="Kelola daftar produk, harga diskon, dan kuota untuk event ini."
             icon={Package}
             actions={
-            <Button onClick={() => setIsSyncModalOpen(true)} className="bg-green-600 hover:bg-green-700 text-white">
+            <Button onClick={openSyncModal} className="bg-green-600 hover:bg-green-700 text-white">
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Sync Spreadsheet
             </Button>
             }
@@ -262,12 +270,24 @@ export default function EventProductsDetailPage() {
                 </div>
                 <form onSubmit={handleSyncSubmit} className="space-y-4">
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Link URL Google Sheet</label>
-                    <input type="url" required disabled={isSyncing} className="w-full px-3 py-2 border rounded-md" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
+                    <label className="text-sm font-medium">Link URL Google Sheet <span className="text-red-500">*</span></label>
+                    <input type="url" required disabled={isSyncing} placeholder="https://docs.google.com/spreadsheets/d/1xxxx..." className="w-full px-3 py-2 border rounded-md text-sm" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
+                    <p className="text-xs text-gray-500">Pastikan akses Sheet diatur ke &quot;Viewer&quot; untuk Service Account.</p>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Nama Sheet</label>
+                    <input type="text" disabled={isSyncing} placeholder="Sheet1" className="w-full px-3 py-2 border rounded-md text-sm" value={sheetName} onChange={(e) => setSheetName(e.target.value)} />
+                    <p className="text-xs text-gray-500">Isi kalau nama <em>tab</em> Sheet bukan &quot;Sheet1&quot;.</p>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">SKU Prefix <span className="text-red-500">*</span></label>
+                    <input type="text" required disabled={isSyncing} placeholder="LC" maxLength={10} pattern="[A-Za-z0-9]+" title="Huruf & angka saja, maks 10 karakter" className="w-full px-3 py-2 border rounded-md text-sm" value={skuPrefix} onChange={(e) => setSkuPrefix(e.target.value)} />
+                    <p className="text-xs text-gray-500">Prefix SKU produk event — SKU varian jadi <code>LC-196307583015</code>. Huruf &amp; angka, maks 10 karakter.</p>
+                    <p className="text-xs text-amber-600">Jangan diubah kalau kampanye ini sudah pernah di-sync: produk lama tetap memakai prefix lama dan akan lepas dari sinkronisasi stok Ginee.</p>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="outline" onClick={() => setIsSyncModalOpen(false)} disabled={isSyncing}>Batal</Button>
-                    <Button type="submit" disabled={!sheetUrl || isSyncing} className="bg-green-600 hover:bg-green-700 text-white">
+                    <Button type="submit" disabled={!sheetUrl || !skuPrefix || isSyncing} className="bg-green-600 hover:bg-green-700 text-white">
                     {isSyncing ? 'Syncing...' : 'Mulai Sync'}
                     </Button>
                 </div>
