@@ -26,7 +26,8 @@ export interface OrderAddress {
   recipientName: string;
   phone: string;
   street: string;
-  subdistrict: string;
+  subdistrict: string;      // Nama kecamatan, mis. "KEBAYORAN BARU"
+  subdistrictId?: string;   // ID Komerce/RajaOngkir, mis. "17543"
   city: string;
   province: string;
   postalCode: string;

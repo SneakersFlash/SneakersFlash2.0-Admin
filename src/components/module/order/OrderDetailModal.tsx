@@ -14,6 +14,28 @@ import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import { getLionStatus, isLionParcelDelivered, isLionParcelProblem, LION_STATUS_CLASSES, LION_JOURNEY_TYPE } from '@/lib/constants/lionParcelStatus';
 import type { Order, OrderStatus } from '@/types/order.types';
 
+// Order Komerce baru dibooking saat webhook Midtrans jalan, dan AWB kurir belum
+// terbit di detik itu — jadi backend menyimpan order_no Komerce ("KOM...") ke
+// kolom trackingNumber. Nomor itu bukan resi: nggak bisa dilacak, nggak bisa
+// discan kurir. Semua yang butuh resi asli harus lewat resolveAwb().
+const isKomerceOrderNo = (value: string, komerceOrderId?: string | null) =>
+  /^KOM\d/i.test(value) || (!!komerceOrderId && value === komerceOrderId);
+
+const resolveAwb = (order: Order | any): string => {
+  // Urutan disamakan dengan prefill di useEffect dan handleTrackOrder.
+  const candidates = [
+    order?.awb,
+    order?.awbTrackingNumber,
+    order?.trackingNumber,
+    order?.courier?.trackingNumber,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate ?? '').trim();
+    if (value && !isKomerceOrderNo(value, order?.komerceOrderId)) return value;
+  }
+  return '';
+};
+
 interface OrderDetailModalProps {
   order: Order | any;
   isOpen: boolean;
@@ -116,7 +138,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   // Cetak label custom Sneakers Flash (untuk non-LP: instant, Komerce reguler)
   const handlePrintLabelSF = () => {
-    const resi    = order.trackingNumber || order.courier?.trackingNumber || order.awbTrackingNumber || '-';
+    const resi    = resolveAwb(order);
+    if (!resi) {
+      toast.warning('Resi kurir belum terbit — label dicetak tanpa nomor resi.');
+    }
     const courier = order.courier?.name || order.courierName || '-';
     const items   = (order.items || []).map((i: any) =>
       `${i.productName}${i.variantSku ? ` - ${i.variantSku}` : ''}`
@@ -170,7 +195,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   <tr><td class="label">PENGIRIM</td><td class="colon">:</td><td>Sneakers Flash</td></tr>
   <tr><td class="label"></td><td class="colon">:</td><td>081280642219</td></tr>
   <tr><td class="label">BARANG YG DIKIRIM</td><td class="colon">:</td><td>${items || '-'}</td></tr>
-  ${resi !== '-' ? `<tr><td class="label">NO RESI</td><td class="colon">:</td><td class="resi">${resi}</td></tr>` : ''}
+  ${resi ? `<tr><td class="label">NO RESI</td><td class="colon">:</td><td class="resi">${resi}</td></tr>` : ''}
 </table>
 <script>window.onload = () => { window.print(); }<\/script>
 </body>
