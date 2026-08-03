@@ -170,8 +170,16 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   // Cetak label custom Sneakers Flash (untuk non-LP: instant, Komerce reguler)
   const handlePrintLabelSF = () => {
-    const resi    = resolveAwb(order);
-    if (!resi) {
+    // Kalau AWB kurir asli belum terbit — kasus normal untuk GoSend/Grab, yang
+    // memang tidak pernah menerbitkan AWB — nomor booking Komerce dipakai
+    // sebagai nomor resi, karena cuma itu nomor yang kita punya. AWB asli tetap
+    // menang kalau ada; dia yang dikenali sistem kurir.
+    const awb       = resolveAwb(order);
+    const bookingNo = String(order.komerceOrderId ?? '').trim();
+    const resi      = awb || bookingNo;
+    if (!awb && bookingNo) {
+      toast.warning('AWB kurir belum terbit — label memakai no. booking Komerce.');
+    } else if (!resi) {
       toast.warning('Resi kurir belum terbit — label dicetak tanpa nomor resi.');
     }
     const courier = String(order.courier?.name || order.courierName || '-').toUpperCase();
@@ -207,9 +215,6 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           <div class="courier-text"${logoFile ? ' style="display:none"' : ''}>${esc(courier)}</div>
         </div>`;
 
-    // Nomor booking Komerce, bukan resi — sengaja diberi label sendiri supaya
-    // tidak tertukar dengan nomor yang discan kurir.
-    const bookingNo = String(order.komerceOrderId ?? '').trim();
 
     const productRows = (order.items || []).map((i: any) => `
           <tr>
@@ -291,7 +296,6 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   .order { font-size: 3.6mm; padding-top: 2.3mm; padding-bottom: 2.3mm; }
   .order .no { font-weight: 800; }
-  .order .booking { font-size: 2.9mm; margin-top: 0.8mm; color: #333; }
 
   /* ---- pengirim ---- */
   .sname { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; margin-top: 1mm; }
@@ -352,10 +356,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
       ${note ? `<div class="note pad">Note: ${esc(note)}</div>\n      <div class="rule"></div>` : ''}
 
       <!-- NO. ORDER -->
-      <div class="order pad">
-        <div>No. Order&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(order.orderNumber)}</span></div>
-        ${bookingNo ? `<div class="booking">No. Booking&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(bookingNo)}</span></div>` : ''}
-      </div>
+      <div class="order pad">No. Order&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(order.orderNumber)}</span></div>
 
       <div class="rule"></div>
 
