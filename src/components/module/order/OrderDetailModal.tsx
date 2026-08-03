@@ -683,11 +683,20 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                   <>
                     <div className="space-y-1">
                       <label className="text-sm font-bold text-indigo-900">Pesanan Siap Dikirim?</label>
-                      <p className="text-xs text-indigo-700">Kemas barang, cetak label resi, lalu panggil kurir Komerce.</p>
+                      <p className="text-xs text-indigo-700">Kemas barang, <span className="font-semibold">panggil kurir dulu</span>, baru cetak label — resi kurir baru terbit dari Komerce saat pickup diminta.</p>
                     </div>
                     <div className="flex gap-2 mt-1">
+                      {/* Sengaja dimatikan sampai pickup diminta: sebelum itu Komerce
+                          belum menerbitkan resi kurir, jadi label yang tercetak
+                          barcode-nya belum bisa discan petugas. Tombolnya tetap
+                          ditampilkan supaya jelas ini cuma urusan urutan, bukan hilang. */}
                       {order.komerceOrderId && (
-                        <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
+                        <Button
+                          variant="outline"
+                          disabled
+                          title="Panggil kurir dulu. Resi kurir baru terbit saat pickup diminta, jadi label yang dicetak sekarang barcode-nya belum bisa discan."
+                          className="bg-white text-blue-600 border-blue-200 w-1/3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                           <Printer className="w-4 h-4 mr-2" /> Cetak Label
                         </Button>
                       )}
