@@ -44,7 +44,9 @@ export interface CourierInfo {
 export interface OrderItem {
   id: string;
   productName: string;
-  variantSku: string;
+  variantSku: string;      // Menyesatkan: isinya variantName. Dipertahankan demi pemakai lama.
+  sku?: string;            // SKU asli, mis. "IH7318677"
+  variantName?: string;    // Nama varian, mis. "42"
   size: string;
   quantity: number;
   unitPrice: number;

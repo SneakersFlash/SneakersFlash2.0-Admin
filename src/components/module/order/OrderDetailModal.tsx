@@ -21,6 +21,18 @@ import type { Order, OrderStatus } from '@/types/order.types';
 const isKomerceOrderNo = (value: string, komerceOrderId?: string | null) =>
   /^KOM\d/i.test(value) || (!!komerceOrderId && value === komerceOrderId);
 
+// Data pelanggan (nama, alamat, catatan) dan nama produk ikut masuk ke dokumen
+// cetak. Tanpa escape, satu karakter `<` atau `&` saja merusak layout label —
+// dan alamat itu diisi pelanggan sendiri, jadi bisa dipakai menyuntik markup ke
+// jendela cetak yang se-origin dengan admin.
+const esc = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const resolveAwb = (order: Order | any): string => {
   // Urutan disamakan dengan prefill di useEffect dan handleTrackOrder.
   const candidates = [
@@ -142,10 +154,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     if (!resi) {
       toast.warning('Resi kurir belum terbit — label dicetak tanpa nomor resi.');
     }
-    const courier = order.courier?.name || order.courierName || '-';
-    const items   = (order.items || []).map((i: any) =>
-      `${i.productName}${i.variantSku ? ` - ${i.variantSku}` : ''}`
-    ).join('<br>');
+    const courier = String(order.courier?.name || order.courierName || '-').toUpperCase();
+    const note    = String(order.address?.notes ?? '').trim();
     const address = [
       order.address?.street,
       order.address?.subdistrict ? `Kec. ${order.address.subdistrict}` : '',
@@ -154,50 +164,228 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
       order.address?.postalCode,
     ].filter(Boolean).join(', ');
 
+    // CODE128 hanya perlu alfanumerik; sekalian menutup kemungkinan nilai aneh
+    // menembus ke dalam <script> di dokumen cetak.
+    const barcodeValue = resi.replace(/[^A-Za-z0-9-]/g, '');
+
+    // Lockup JNE cuma dipakai kalau kurirnya memang JNE. Kurir lain (GoSend,
+    // Grab) tampil sebagai teks — jangan sampai paket GoSend berlogo JNE.
+    const courierMark = courier.includes('JNE')
+      ? `<div class="jne">
+          <div class="swoosh"></div>
+          <div class="mark"><span class="b">JN</span><span class="r">E</span></div>
+          <div class="sub">EXPRESS</div>
+        </div>`
+      : `<div class="courier-text">${esc(courier)}</div>`;
+
+    const productRows = (order.items || []).map((i: any) => `
+          <tr>
+            <td class="cprod">${esc(i.productName)}</td>
+            <td class="csku">${esc(i.sku || i.variantSku || '-')}</td>
+            <td class="cvar">${esc(i.variantName || i.size || '-')}</td>
+            <td class="cqty">${esc(i.quantity)}</td>
+          </tr>`).join('')
+      || `<tr><td class="cprod" colspan="4">-</td></tr>`;
+
+    const printedAt = new Date().toLocaleString('id-ID', {
+      day: 'numeric', month: 'numeric', year: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+
     const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Label Pengiriman - ${order.orderNumber}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Pengiriman - ${esc(order.orderNumber)}</title>
 <style>
-  @page { margin: 12mm; size: A5; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; background: #fff; }
-  .logo { text-align: center; margin-bottom: 10px; }
-  .logo img { max-height: 60px; max-width: 160px; object-fit: contain; }
-  .courier { text-align: center; font-size: 22pt; font-weight: 900; letter-spacing: 2px; margin: 8px 0 14px; text-transform: uppercase; }
-  hr { border: none; border-top: 1.5px solid #000; margin: 10px 0; }
-  table { width: 100%; border-collapse: collapse; }
-  td { padding: 4px 3px; vertical-align: top; line-height: 1.4; }
-  td.label { font-weight: bold; width: 140px; white-space: nowrap; }
-  td.colon { width: 12px; }
-  .resi { font-family: monospace; font-size: 10pt; font-weight: bold; }
-  @media print { body { -webkit-print-color-adjust: exact; } }
+  /* Ukuran halaman = proporsi persis kayak gambar (~A-ratio, 105 x 150mm).
+     Ganti ke \`100mm 150mm\` kalau mau di-lock ke thermal standar. */
+  @page { size: 105mm 150mm; margin: 0; }
+
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  html, body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
+
+  @media screen {
+    body { background: #d9d9d9; display: flex; justify-content: center; padding: 24px; }
+  }
+
+  .sheet {
+    width: 105mm; height: 150mm; background: #fff;
+    padding: 2mm 2mm 1.5mm; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ---- baris atas (tanggal + judul) ---- */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: "Courier New", monospace; font-size: 2.2mm; margin-bottom: 1.8mm;
+  }
+
+  /* ---- kartu ber-border ---- */
+  .card { border: 0.35mm solid #000; display: flex; flex-direction: column; }
+  .rule { border-top: 0.35mm solid #000; }
+  .pad { padding-left: 3.5mm; padding-right: 3.5mm; }
+
+  /* ---- logo ---- */
+  .logos { display: flex; justify-content: space-between; align-items: center; padding-top: 2.5mm; padding-bottom: 2.5mm; }
+  .sf { line-height: 0.9; font-weight: 900; font-style: italic; font-size: 4.6mm; letter-spacing: 0.2mm; }
+  .sf .l2 { display: flex; align-items: center; }
+  .sf .bolt { width: 3mm; height: 4.3mm; margin: 0 -0.3mm; }
+  .sf .bolt polygon { fill: #000; }
+
+  .jne { text-align: right; line-height: 1; position: relative; }
+  .jne .mark { font-size: 6.4mm; font-weight: 900; font-style: italic; letter-spacing: -0.3mm; }
+  .jne .mark .b { color: #16357f; }
+  .jne .mark .r { color: #e2231a; }
+  .jne .swoosh {
+    position: absolute; right: -0.5mm; top: 0.4mm; width: 6mm; height: 2.4mm;
+    background: #e2231a; transform: skewX(-28deg); border-radius: 0.4mm; z-index: -1;
+  }
+  .jne .sub { font-size: 2.1mm; font-weight: 800; letter-spacing: 1mm; color: #16357f; margin-top: 0.3mm; }
+  .courier-text { font-size: 6.4mm; font-weight: 900; font-style: italic; letter-spacing: -0.3mm; text-align: right; }
+
+  /* ---- barcode ---- */
+  .barcode { text-align: center; padding-top: 3mm; padding-bottom: 2mm; }
+  #barcode { height: 17mm; width: auto; max-width: 88mm; display: inline-block; }
+  .barnum { font-family: "Courier New", monospace; font-size: 5.3mm; font-weight: 700; letter-spacing: 0.3mm; margin-top: 0.5mm; }
+  .barnum.empty { font-size: 3.4mm; letter-spacing: 0.6mm; color: #555; }
+
+  /* ---- pills & badge ---- */
+  .head { display: flex; justify-content: space-between; align-items: center; padding-top: 2.5mm; margin-bottom: 1.5mm; }
+  .pill { background: #000; color: #fff; font-weight: 800; font-size: 3.6mm; padding: 1.1mm 4mm; border-radius: 6mm; }
+  .home { font-size: 4.2mm; font-weight: 500; padding: 1.2mm 6mm; border: 0.45mm solid #000; border-radius: 6mm; }
+
+  /* ---- penerima ---- */
+  .rname { font-size: 4.6mm; font-weight: 800; }
+  .rphone { font-size: 4.6mm; font-weight: 800; margin-bottom: 1mm; }
+  .raddr { font-size: 2.9mm; line-height: 1.3; padding-bottom: 2.5mm; }
+
+  .note { font-size: 2.9mm; padding-top: 2mm; padding-bottom: 2mm; }
+
+  .order { font-size: 3.6mm; padding-top: 2.3mm; padding-bottom: 2.3mm; }
+  .order .no { font-weight: 800; }
+
+  /* ---- pengirim ---- */
+  .sname { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; margin-top: 1mm; }
+  .sphone { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; padding-bottom: 2.5mm; }
+
+  /* ---- tabel produk ---- */
+  table.prod { width: 100%; border-collapse: collapse; }
+  table.prod th { font-size: 3mm; font-weight: 800; text-align: left; padding: 2mm 0 2mm 3.5mm; border-bottom: 0.35mm solid #000; }
+  table.prod td { font-size: 2.7mm; padding: 2mm 0 2mm 3.5mm; vertical-align: top; line-height: 1.2; }
+  table.prod .cprod { width: 44%; font-weight: 700; padding-left: 6mm; }
+  table.prod th.cprod { padding-left: 3.5mm; }
+  table.prod .csku { width: 22%; }
+  table.prod .cvar { width: 19%; text-align: center; padding-left: 0; }
+  table.prod .cqty { width: 15%; text-align: center; padding-left: 0; }
+
+  /* ---- footer ---- */
+  .foot { text-align: center; font-size: 2.3mm; color: #333; margin-top: 2mm; }
 </style>
 </head>
 <body>
-<div class="logo">
-  <img src="/images/Logo.png" alt="Sneakers Flash" onerror="this.outerHTML='<h2 style=font-size:18pt;font-weight:900;letter-spacing:1px>SNKRS FLASH</h2>'" />
-</div>
-<div class="courier">${courier}</div>
-<hr>
-<table>
-  <tr><td class="label">NAMA</td><td class="colon">:</td><td>${order.address?.recipientName || '-'}</td></tr>
-  <tr><td class="label">NO TEL/HP</td><td class="colon">:</td><td>${order.address?.phone || '-'}</td></tr>
-  <tr><td class="label">ALAMAT</td><td class="colon">:</td><td>${address || '-'}</td></tr>
-</table>
-<hr>
-<table>
-  <tr><td class="label">No Orderan</td><td class="colon">:</td><td class="resi">${order.orderNumber}</td></tr>
-</table>
-<hr>
-<table>
-  <tr><td class="label">PENGIRIM</td><td class="colon">:</td><td>Sneakers Flash</td></tr>
-  <tr><td class="label"></td><td class="colon">:</td><td>081280642219</td></tr>
-  <tr><td class="label">BARANG YG DIKIRIM</td><td class="colon">:</td><td>${items || '-'}</td></tr>
-  ${resi ? `<tr><td class="label">NO RESI</td><td class="colon">:</td><td class="resi">${resi}</td></tr>` : ''}
-</table>
-<script>window.onload = () => { window.print(); }<\/script>
+  <div class="sheet">
+
+    <div class="topbar">
+      <span>${esc(printedAt)}</span>
+      <span>Label Pengiriman - ${esc(order.orderNumber)}</span>
+    </div>
+
+    <div class="card">
+
+      <!-- LOGO -->
+      <div class="logos pad">
+        <div class="sf">
+          <div>SNKRS</div>
+          <div class="l2">FLA<svg class="bolt" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><polygon points="14,1 4,13 11,13 9,23 20,9 13,9"/></svg>H</div>
+        </div>
+        ${courierMark}
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- BARCODE -->
+      <div class="barcode pad">
+        ${barcodeValue ? '<svg id="barcode"></svg>' : ''}
+        <div class="barnum${resi ? '' : ' empty'}">${resi ? esc(resi) : 'RESI BELUM TERBIT'}</div>
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- PENERIMA -->
+      <div class="head pad">
+        <span class="pill">Penerima</span>
+        <span class="home">HOME</span>
+      </div>
+      <div class="pad">
+        <div class="rname">${esc(order.address?.recipientName || '-')}</div>
+        <div class="rphone">${esc(order.address?.phone || '-')}</div>
+        <div class="raddr">${esc(address || '-')}</div>
+      </div>
+
+      <div class="rule"></div>
+      ${note ? `<div class="note pad">Note: ${esc(note)}</div>\n      <div class="rule"></div>` : ''}
+
+      <!-- NO. ORDER -->
+      <div class="order pad">No. Order&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(order.orderNumber)}</span></div>
+
+      <div class="rule"></div>
+
+      <!-- PENGIRIM -->
+      <div class="head pad"><span class="pill">Pengirim</span></div>
+      <div>
+        <div class="sname">Sneakers Flash</div>
+        <div class="sphone">0812 8064 2219</div>
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- TABEL PRODUK -->
+      <table class="prod">
+        <thead>
+          <tr>
+            <th class="cprod">PRODUK</th>
+            <th class="csku">SKU</th>
+            <th class="cvar">VARIASI</th>
+            <th class="cqty">QTY</th>
+          </tr>
+        </thead>
+        <tbody>${productRows}
+        </tbody>
+      </table>
+
+    </div><!-- /card -->
+
+    <div class="foot">www.sneakersflash.com</div>
+
+  </div>
+
+  <script>
+    // Barcode digambar dari CDN. Kalau CDN diblokir atau lambat, label tetap
+    // harus kecetak — makanya print dipicu lewat onload/onerror plus timeout,
+    // dan dijaga supaya cuma jalan sekali.
+    var BARCODE_VALUE = ${JSON.stringify(barcodeValue)};
+    var alreadyPrinted = false;
+    function renderAndPrint() {
+      if (alreadyPrinted) return;
+      alreadyPrinted = true;
+      try {
+        if (BARCODE_VALUE && window.JsBarcode) {
+          JsBarcode("#barcode", BARCODE_VALUE, {
+            format: "CODE128", width: 2, height: 70, displayValue: false, margin: 0
+          });
+        }
+      } catch (e) {}
+      window.print();
+    }
+    setTimeout(renderAndPrint, 3000);
+  <\/script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"
+    onload="renderAndPrint()" onerror="renderAndPrint()"><\/script>
 </body>
 </html>`;
 
