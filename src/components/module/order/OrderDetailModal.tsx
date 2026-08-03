@@ -41,6 +41,15 @@ const COURIER_LOGOS: { match: string; file: string }[] = [
 const courierLogoFile = (courierName: string): string | null =>
   COURIER_LOGOS.find((c) => courierName.includes(c.match))?.file ?? null;
 
+// HARUS sama dengan STORE_SHIPPER_NAME / STORE_SHIPPER_PHONE di .env backend —
+// nilai itu yang dikirim ke Komerce saat booking, jadi nomor yang tertempel di
+// kardus dan nomor yang ada di sistem kurir harus nomor yang sama. Sempat beda
+// (label pakai 081280642219, booking pakai 081313911391).
+const SHIPPER = {
+  name: 'Sneakers Flash',
+  phone: '0813 1391 1391',
+};
+
 // Data pelanggan (nama, alamat, catatan) dan nama produk ikut masuk ke dokumen
 // cetak. Tanpa escape, satu karakter `<` atau `&` saja merusak layout label —
 // dan alamat itu diisi pelanggan sendiri, jadi bisa dipakai menyuntik markup ke
@@ -363,8 +372,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
       <!-- PENGIRIM -->
       <div class="head pad"><span class="pill">Pengirim</span></div>
       <div>
-        <div class="sname">Sneakers Flash</div>
-        <div class="sphone">0812 8064 2219</div>
+        <div class="sname">${esc(SHIPPER.name)}</div>
+        <div class="sphone">${esc(SHIPPER.phone)}</div>
       </div>
 
       <div class="rule"></div>
