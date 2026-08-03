@@ -21,6 +21,26 @@ import type { Order, OrderStatus } from '@/types/order.types';
 const isKomerceOrderNo = (value: string, komerceOrderId?: string | null) =>
   /^KOM\d/i.test(value) || (!!komerceOrderId && value === komerceOrderId);
 
+// Logo kurir diambil dari berkas di /public/images/couriers — nama kurir cuma
+// menentukan berkas mana yang dipakai, bukan digambar ulang pakai CSS. Nambah
+// kurir = taruh berkasnya lalu tambah satu baris di sini. Kalau berkasnya belum
+// ada, label otomatis jatuh ke nama kurir sebagai teks.
+const COURIER_LOGOS: { match: string; file: string }[] = [
+  { match: 'JNE', file: 'jne.png' },
+  { match: 'GOSEND', file: 'gosend.png' },
+  { match: 'GRAB', file: 'grab.png' },
+  { match: 'SICEPAT', file: 'sicepat.png' },
+  { match: 'J&T', file: 'jnt.png' },
+  { match: 'ANTERAJA', file: 'anteraja.png' },
+  { match: 'NINJA', file: 'ninja.png' },
+  { match: 'IDEXPRESS', file: 'idexpress.png' },
+  { match: 'TIKI', file: 'tiki.png' },
+  { match: 'POS', file: 'pos.png' },
+];
+
+const courierLogoFile = (courierName: string): string | null =>
+  COURIER_LOGOS.find((c) => courierName.includes(c.match))?.file ?? null;
+
 // Data pelanggan (nama, alamat, catatan) dan nama produk ikut masuk ke dokumen
 // cetak. Tanpa escape, satu karakter `<` atau `&` saja merusak layout label —
 // dan alamat itu diisi pelanggan sendiri, jadi bisa dipakai menyuntik markup ke
@@ -168,15 +188,28 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     // menembus ke dalam <script> di dokumen cetak.
     const barcodeValue = resi.replace(/[^A-Za-z0-9-]/g, '');
 
-    // Lockup JNE cuma dipakai kalau kurirnya memang JNE. Kurir lain (GoSend,
-    // Grab) tampil sebagai teks — jangan sampai paket GoSend berlogo JNE.
-    const courierMark = courier.includes('JNE')
-      ? `<div class="jne">
-          <div class="swoosh"></div>
-          <div class="mark"><span class="b">JN</span><span class="r">E</span></div>
-          <div class="sub">EXPRESS</div>
-        </div>`
-      : `<div class="courier-text">${esc(courier)}</div>`;
+    // Jendela cetak dibuka sebagai about:blank, yang tidak punya base URL — URL
+    // gambar harus absolut, kalau relatif tidak akan ketemu.
+    const origin = window.location.origin;
+    const logoFile = courierLogoFile(courier);
+
+    // Tiap logo punya teks cadangan yang muncul lewat onerror kalau berkasnya
+    // belum ada. Label tetap kepakai walau asetnya belum dipasang.
+    const brandMark = `<div class="brand-slot">
+          <img class="brand-logo" src="${origin}/images/Logo.png" alt="Sneakers Flash"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+          <div class="brand-text" style="display:none">SNKRS FLASH</div>
+        </div>`;
+
+    const courierMark = `<div class="courier-slot">
+          ${logoFile ? `<img class="courier-logo" src="${origin}/images/couriers/${logoFile}" alt="${esc(courier)}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />` : ''}
+          <div class="courier-text"${logoFile ? ' style="display:none"' : ''}>${esc(courier)}</div>
+        </div>`;
+
+    // Nomor booking Komerce, bukan resi — sengaja diberi label sendiri supaya
+    // tidak tertukar dengan nomor yang discan kurir.
+    const bookingNo = String(order.komerceOrderId ?? '').trim();
 
     const productRows = (order.items || []).map((i: any) => `
           <tr>
@@ -230,22 +263,13 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   .pad { padding-left: 3.5mm; padding-right: 3.5mm; }
 
   /* ---- logo ---- */
-  .logos { display: flex; justify-content: space-between; align-items: center; padding-top: 2.5mm; padding-bottom: 2.5mm; }
-  .sf { line-height: 0.9; font-weight: 900; font-style: italic; font-size: 4.6mm; letter-spacing: 0.2mm; }
-  .sf .l2 { display: flex; align-items: center; }
-  .sf .bolt { width: 3mm; height: 4.3mm; margin: 0 -0.3mm; }
-  .sf .bolt polygon { fill: #000; }
-
-  .jne { text-align: right; line-height: 1; position: relative; }
-  .jne .mark { font-size: 6.4mm; font-weight: 900; font-style: italic; letter-spacing: -0.3mm; }
-  .jne .mark .b { color: #16357f; }
-  .jne .mark .r { color: #e2231a; }
-  .jne .swoosh {
-    position: absolute; right: -0.5mm; top: 0.4mm; width: 6mm; height: 2.4mm;
-    background: #e2231a; transform: skewX(-28deg); border-radius: 0.4mm; z-index: -1;
-  }
-  .jne .sub { font-size: 2.1mm; font-weight: 800; letter-spacing: 1mm; color: #16357f; margin-top: 0.3mm; }
-  .courier-text { font-size: 6.4mm; font-weight: 900; font-style: italic; letter-spacing: -0.3mm; text-align: right; }
+  .logos { display: flex; justify-content: space-between; align-items: center; gap: 3mm; padding-top: 2.5mm; padding-bottom: 2.5mm; }
+  .brand-slot, .courier-slot { min-width: 0; }
+  .courier-slot { text-align: right; }
+  .logos img { max-height: 10mm; max-width: 40mm; width: auto; object-fit: contain; display: block; }
+  .courier-slot img { margin-left: auto; }
+  .brand-text { line-height: 0.9; font-weight: 900; font-style: italic; font-size: 4.6mm; letter-spacing: 0.2mm; }
+  .courier-text { font-size: 6.4mm; font-weight: 900; font-style: italic; letter-spacing: -0.3mm; text-align: right; text-transform: uppercase; }
 
   /* ---- barcode ---- */
   .barcode { text-align: center; padding-top: 3mm; padding-bottom: 2mm; }
@@ -267,6 +291,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   .order { font-size: 3.6mm; padding-top: 2.3mm; padding-bottom: 2.3mm; }
   .order .no { font-weight: 800; }
+  .order .booking { font-size: 2.9mm; margin-top: 0.8mm; color: #333; }
 
   /* ---- pengirim ---- */
   .sname { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; margin-top: 1mm; }
@@ -298,10 +323,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
       <!-- LOGO -->
       <div class="logos pad">
-        <div class="sf">
-          <div>SNKRS</div>
-          <div class="l2">FLA<svg class="bolt" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><polygon points="14,1 4,13 11,13 9,23 20,9 13,9"/></svg>H</div>
-        </div>
+        ${brandMark}
         ${courierMark}
       </div>
 
@@ -330,7 +352,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
       ${note ? `<div class="note pad">Note: ${esc(note)}</div>\n      <div class="rule"></div>` : ''}
 
       <!-- NO. ORDER -->
-      <div class="order pad">No. Order&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(order.orderNumber)}</span></div>
+      <div class="order pad">
+        <div>No. Order&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(order.orderNumber)}</span></div>
+        ${bookingNo ? `<div class="booking">No. Booking&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(bookingNo)}</span></div>` : ''}
+      </div>
 
       <div class="rule"></div>
 
@@ -369,6 +394,21 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     // dan dijaga supaya cuma jalan sekali.
     var BARCODE_VALUE = ${JSON.stringify(barcodeValue)};
     var alreadyPrinted = false;
+
+    // Logo yang belum selesai dimuat akan hilang dari hasil cetak, jadi print
+    // ditahan sampai semua gambar kelar — sukses maupun gagal.
+    function whenImagesReady(done) {
+      var pending = Array.prototype.slice.call(document.images)
+        .filter(function (img) { return !img.complete; });
+      if (!pending.length) return done();
+      var left = pending.length;
+      var tick = function () { if (--left <= 0) done(); };
+      pending.forEach(function (img) {
+        img.addEventListener('load', tick);
+        img.addEventListener('error', tick);
+      });
+    }
+
     function renderAndPrint() {
       if (alreadyPrinted) return;
       alreadyPrinted = true;
@@ -379,7 +419,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
           });
         }
       } catch (e) {}
-      window.print();
+      whenImagesReady(function () { window.print(); });
     }
     setTimeout(renderAndPrint, 3000);
   <\/script>
