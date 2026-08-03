@@ -170,15 +170,17 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   // Cetak label custom Sneakers Flash (untuk non-LP: instant, Komerce reguler)
   const handlePrintLabelSF = () => {
-    // Nomor booking Komerce ("KOM...") yang dipakai sebagai nomor resi, selalu —
-    // keputusan operasional: itu nomor yang konsisten ada di semua order dan
-    // yang dipakai tim buat mencari order di dashboard Komerce. AWB kurir cuma
-    // dipakai kalau order sama sekali tidak punya nomor booking, supaya label
-    // tidak kecetak tanpa nomor apa pun.
+    // Kalau AWB kurir asli belum terbit — kasus normal untuk GoSend/Grab, yang
+    // memang tidak pernah menerbitkan AWB — nomor booking Komerce dipakai
+    // sebagai nomor resi, karena cuma itu nomor yang kita punya. AWB asli tetap
+    // menang kalau ada; dia yang dikenali sistem kurir.
+    const awb       = resolveAwb(order);
     const bookingNo = String(order.komerceOrderId ?? '').trim();
-    const resi      = bookingNo || resolveAwb(order);
-    if (!resi) {
-      toast.warning('Order ini belum punya no. booking maupun resi — label dicetak tanpa nomor.');
+    const resi      = awb || bookingNo;
+    if (!awb && bookingNo) {
+      toast.warning('AWB kurir belum terbit — label memakai no. booking Komerce.');
+    } else if (!resi) {
+      toast.warning('Resi kurir belum terbit — label dicetak tanpa nomor resi.');
     }
     const courier = String(order.courier?.name || order.courierName || '-').toUpperCase();
     const note    = String(order.address?.notes ?? '').trim();
