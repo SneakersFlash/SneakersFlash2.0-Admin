@@ -592,6 +592,50 @@ export default function ProductsPage() {
     }
   };
 
+  // Tarik stok satu produk — HANYA stok.
+  // Beda dari handlePullProduct di atas yang menimpa nama/harga/gambar/kategori.
+  // Sumber angkanya sama dengan pull-stock massal (15 gudang SF), jadi hasil
+  // kedua tombol konsisten.
+  const handlePullStockProduct = async (product: Product) => {
+    setSyncingProductId(product.id);
+    const toastId = toast.loading(`Menarik stok "${product.name}" dari Ginee...`);
+    try {
+      const { data } = await api.post('/ginee/sync/pull-stock/product', {
+        productId: product.id,
+      });
+
+      if (data.matchedSkus === 0) {
+        toast.warning(
+          `"${product.name}": tidak ada SKU yang ketemu di gudang Ginee — stok tidak diubah`,
+          { id: toastId, duration: 8000 },
+        );
+      } else if (data.updatedVariants === 0) {
+        toast.success(`"${product.name}": stok sudah sama dengan Ginee`, {
+          id: toastId,
+        });
+      } else {
+        const detail = (data.changes ?? [])
+          .map(
+            (c: { sku: string; from: number; to: number }) =>
+              `${c.sku}: ${c.from} → ${c.to}`,
+          )
+          .join(', ');
+        toast.success(
+          `✅ ${data.updatedVariants} varian diupdate${detail ? ` (${detail})` : ''}`,
+          { id: toastId, duration: 10000 },
+        );
+      }
+      fetchProducts();
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message || `Gagal tarik stok "${product.name}"`,
+        { id: toastId },
+      );
+    } finally {
+      setSyncingProductId(null);
+    }
+  };
+
   // ── Helpers ───────────────────────────────────────────────────────────────────
   const handleSort = (key: string) => {
     if (sortBy === key) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -908,7 +952,19 @@ export default function ProductsPage() {
                               disabled={isSyncingThis || !product.gineeProductId}
                             >
                               <CloudDownload className="mr-2 h-4 w-4" />
-                              Pull dari Ginee
+                              Pull dari Ginee (semua data)
+                            </DropdownMenuItem>
+
+                            {/* Stok saja — tidak menimpa nama/harga/gambar/kategori.
+                                Tidak butuh gineeProductId: kalau produk belum
+                                ter-mapping, SKU lokal dipakai sebagai masterSku. */}
+                            <DropdownMenuItem
+                              className="cursor-pointer text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+                              onClick={() => handlePullStockProduct(product)}
+                              disabled={isSyncingThis}
+                            >
+                              <PackageSearch className="mr-2 h-4 w-4" />
+                              Tarik Stok Saja
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
