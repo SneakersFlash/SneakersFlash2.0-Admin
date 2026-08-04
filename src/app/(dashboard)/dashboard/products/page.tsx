@@ -96,14 +96,22 @@ export default function ProductsPage() {
   const [pullStockOpen, setPullStockOpen]   = useState(false);
   const [pullStockDryRun, setPullStockDryRun] = useState(true);
   const [pullingStock, setPullingStock]     = useState(false);
+  // Bentuk ini HARUS sama dengan return pullStockOnlyByInventory() di backend.
+  // Sebelumnya dipakai nama karangan (variantsUpdated/eventVariantsUpdated/
+  // variantsNotFound) yang tidak pernah ada di response, jadi ringkasannya
+  // selalu nol walau job-nya sukses.
   const [pullStockResult, setPullStockResult] = useState<{
     warehousesScanned: number;
     pagesFetched: number;
     inventoryRowsScanned: number;
-    variantsUpdated: number;
-    eventVariantsUpdated: number;
-    variantsNotFound: number;
+    targetSkuCount: number;
+    matchedSkus: number;
+    updatedVariants: number;
     dryRun: boolean;
+  } | null>(null);
+  const [pullStockScope, setPullStockScope] = useState<{
+    warehousesCount: number;
+    targetSkuCount: number;
   } | null>(null);
 
   // ── Ginee Sync All state ─────────────────────────────────────────────────────
@@ -300,12 +308,22 @@ export default function ProductsPage() {
   const handlePullStock = async () => {
     setPullingStock(true);
     setPullStockResult(null);
+    setPullStockScope(null);
     const toastId = toast.loading('Queuing pull-stock job...');
 
     try {
+      // Target (gudang + daftar gineeSkuId) ditentukan backend dari DB.
+      // Jangan kirim GINEE_WAREHOUSE_IDS: daftar itu memuat gudang bisnis lain
+      // di akun Ginee yang sama (KCG ALL, BETTER GOODS, FOLDE, BG/FD
+      // EXHIBITION), sedangkan job MENJUMLAH stok lintas gudang — ikut
+      // menyertakannya bikin stok lokal menggelembung.
       const enqueueResp = await api.post('/ginee/sync/pull-stock', {
-        warehouseIds: GINEE_WAREHOUSE_IDS,
         dryRun: pullStockDryRun,
+      });
+
+      setPullStockScope({
+        warehousesCount: enqueueResp.data.warehousesCount ?? 0,
+        targetSkuCount: enqueueResp.data.targetSkuCount ?? 0,
       });
 
       if (!enqueueResp.data.queued) {
@@ -346,16 +364,16 @@ export default function ProductsPage() {
             warehousesScanned: lastResult.warehousesScanned ?? 0,
             pagesFetched: lastResult.pagesFetched ?? 0,
             inventoryRowsScanned: lastResult.inventoryRowsScanned ?? 0,
-            variantsUpdated: lastResult.variantsUpdated ?? 0,
-            eventVariantsUpdated: lastResult.eventVariantsUpdated ?? 0,
-            variantsNotFound: lastResult.variantsNotFound ?? 0,
-            dryRun: lastResult.dryRun ?? pullStockDryRun,
+            targetSkuCount: lastResult.targetSkuCount ?? 0,
+            matchedSkus: lastResult.matchedSkus ?? 0,
+            updatedVariants: lastResult.updatedVariants ?? 0,
+            dryRun: pullStockDryRun,
           });
 
           toast.success(
             pullStockDryRun
-              ? `Dry run selesai: ${lastResult.variantsUpdated ?? 0} variant akan diupdate`
-              : `Selesai: ${lastResult.variantsUpdated ?? 0} variant (+ ${lastResult.eventVariantsUpdated ?? 0} event) stok diupdate dari Ginee`,
+              ? `Dry run selesai: ${lastResult.matchedSkus ?? 0} SKU ketemu di Ginee`
+              : `Selesai: ${lastResult.updatedVariants ?? 0} variant stok diupdate dari Ginee`,
             { id: toastId, duration: 8000 },
           );
 
@@ -955,9 +973,10 @@ export default function ProductsPage() {
               Pull Stock dari Ginee
             </DialogTitle>
             <DialogDescription>
-              Ambil stok terkini dari <strong>{GINEE_WAREHOUSE_IDS.length} warehouse Ginee</strong> dan
-              update <code>stockQuantity</code> + <code>availableStock</code> di local DB.
-              Hanya memperbarui variant yang sudah memiliki <code>gineeSkuId</code>.
+              Ambil stok terkini dari Ginee dan update <code>stockQuantity</code> di local DB.
+              Harga, SKU, nama, dan gambar tidak disentuh. Hanya variant yang sudah punya{' '}
+              <code>gineeSkuId</code> yang diperbarui — gudang dan daftar SKU-nya
+              ditentukan server dari isi katalog, jadi tidak perlu diisi manual.
             </DialogDescription>
           </DialogHeader>
 
@@ -973,13 +992,26 @@ export default function ProductsPage() {
                 <div className="font-medium text-right">{pullStockResult.pagesFetched}</div>
                 <div>Baris inventori diproses:</div>
                 <div className="font-medium text-right">{pullStockResult.inventoryRowsScanned}</div>
-                <div>{pullStockResult.dryRun ? 'Akan diupdate:' : 'Variant diupdate:'}</div>
-                <div className="font-medium text-right text-emerald-900">{pullStockResult.variantsUpdated}</div>
-                <div>{pullStockResult.dryRun ? 'Event variant akan diupdate:' : 'Event variant diupdate:'}</div>
-                <div className="font-medium text-right text-emerald-700">{pullStockResult.eventVariantsUpdated}</div>
-                <div>Tidak ada di local DB:</div>
-                <div className="font-medium text-right text-amber-700">{pullStockResult.variantsNotFound}</div>
+                <div>SKU target:</div>
+                <div className="font-medium text-right">{pullStockResult.targetSkuCount}</div>
+                <div>Ketemu stoknya di Ginee:</div>
+                <div className="font-medium text-right text-emerald-900">{pullStockResult.matchedSkus}</div>
+                {!pullStockResult.dryRun && (
+                  <>
+                    <div>Variant diupdate:</div>
+                    <div className="font-medium text-right text-emerald-900">{pullStockResult.updatedVariants}</div>
+                  </>
+                )}
+                <div>Tidak ketemu di gudang mana pun:</div>
+                <div className="font-medium text-right text-amber-700">
+                  {Math.max(0, pullStockResult.targetSkuCount - pullStockResult.matchedSkus)}
+                </div>
               </div>
+              <p className="text-xs text-emerald-700 border-t border-emerald-200 pt-2">
+                SKU yang tidak ketemu <strong>stok lamanya dibiarkan</strong>, bukan dinolkan —
+                job ini baca lewat warehouse-inventory, jadi varian yang di Ginee belum
+                punya gudang memang tidak pernah muncul.
+              </p>
             </div>
           )}
 
@@ -1005,7 +1037,8 @@ export default function ProductsPage() {
               <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
                 <RefreshCw className="h-4 w-4 animate-spin shrink-0 mt-0.5" />
                 <span>
-                  Sedang memproses {GINEE_WAREHOUSE_IDS.length} warehouse. Bisa 15-30 menit.
+                  Sedang memproses {pullStockScope?.warehousesCount ?? '…'} warehouse
+                  {pullStockScope ? ` / ${pullStockScope.targetSkuCount} SKU target` : ''}. Bisa 15-30 menit.
                   Tutup tab boleh — job tetap jalan di background.
                 </span>
               </div>
@@ -1015,8 +1048,9 @@ export default function ProductsPage() {
               <div className="flex gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm text-teal-700">
                 <span className="text-lg leading-none">ℹ️</span>
                 <span>
-                  Mode live — akan update <code>stockQuantity</code> dan <code>availableStock</code> sesuai
-                  stok terkini di Ginee. Inventory log akan dicatat otomatis.
+                  Mode live — akan menimpa <code>stockQuantity</code> dengan stok terkini di Ginee
+                  (dijumlah lintas gudang). Variant SF dan TS yang berbagi <code>gineeSkuId</code>
+                  ikut di-set sama.
                 </span>
               </div>
             )}
