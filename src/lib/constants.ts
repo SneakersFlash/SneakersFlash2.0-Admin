@@ -116,6 +116,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { title: 'Events', href: '/dashboard/campaigns', icon: 'megaphone' },
       { title: 'Blog & Artikel', href: '/dashboard/blog', icon: 'newspaper' },
       { title: 'Promo & Voucher', href: '/dashboard/promo-campaigns', icon: 'ticket' },
+      { title: 'Merdeka Game', href: '/dashboard/game', icon: 'gamepad' },
     ]
   },
   {
