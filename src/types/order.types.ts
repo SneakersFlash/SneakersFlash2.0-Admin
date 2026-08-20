@@ -11,7 +11,10 @@ export type OrderStatus =
   | 'cancelled'
   | 'returned';
 
-export type PaymentMethod = 'bank_transfer' | 'gopay' | 'qris' | 'credit_card' | 'cod';
+export type PaymentMethod =
+  | 'bca_va' | 'bni_va' | 'bri_va' | 'mandiri_va' | 'permata_va'
+  | 'gopay' | 'shopeepay' | 'qris' | 'akulaku' | 'credit_card'
+  | 'bank_transfer' | 'cod';
 
 export type PaymentStatus = 
   | 'pending'
@@ -69,6 +72,11 @@ export interface Order {
   status: OrderStatus;
   storefront?: 'SF' | 'TS' | null;
   paymentMethod: PaymentMethod;
+  paymentStatus?: string | null;
+  paymentExpiresAt?: string | null;
+  cancellationReason?: string | null;
+  cancellationSource?: string | null;
+  cancelledAt?: string | null;
   voucherCode?: string | null;
 
   subtotal: number;

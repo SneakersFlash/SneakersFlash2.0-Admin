@@ -97,6 +97,29 @@ const resolveAwb = (order: Order | any): string => {
   return '';
 };
 
+const PAYMENT_LABELS: Record<string, string> = {
+  bca_va: 'BCA Virtual Account',
+  bni_va: 'BNI Virtual Account',
+  bri_va: 'BRI Virtual Account',
+  mandiri_va: 'Mandiri Bill Payment',
+  permata_va: 'Permata Virtual Account',
+  gopay: 'GoPay',
+  shopeepay: 'ShopeePay',
+  qris: 'GoPay Dynamic QRIS',
+  akulaku: 'Akulaku PayLater',
+  credit_card: 'Kartu Kredit / Debit',
+  bank_transfer: 'Transfer Bank',
+  cod: 'COD',
+};
+
+const CANCELLATION_SOURCE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  customer: 'Customer',
+  system_expiry: 'Sistem — expiry pembayaran',
+  midtrans: 'Midtrans',
+  historical: 'Data historis',
+};
+
 interface OrderDetailModalProps {
   order: Order | any;
   isOpen: boolean;
@@ -629,9 +652,38 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 <span className="text-gray-500">Total Pembayaran</span>
                 <span className="font-bold text-emerald-600">Rp {Number(order.finalAmount || order.total).toLocaleString('id-ID')}</span>
               </div>
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-gray-500">Metode Pembayaran</span>
+                <span className="font-semibold text-right text-gray-900">
+                  {PAYMENT_LABELS[order.paymentMethod] || order.paymentMethod || '-'}
+                </span>
+              </div>
+              {order.paymentStatus && (
+                <div className="flex justify-between gap-4 text-sm">
+                  <span className="text-gray-500">Status Pembayaran</span>
+                  <span className="font-mono text-xs font-semibold text-gray-700">{order.paymentStatus}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {order.status === 'cancelled' && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+            <h4 className="text-sm font-bold text-red-900">Alasan Pembatalan</h4>
+            <p className="mt-1 text-sm text-red-800">
+              {order.cancellationReason || 'Alasan pembatalan tidak tercatat.'}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-red-700">
+              <span>Sumber: {CANCELLATION_SOURCE_LABELS[order.cancellationSource] || order.cancellationSource || '-'}</span>
+              {order.cancelledAt && (
+                <span>
+                  Waktu: {new Date(order.cancelledAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Area Aksi Status ─────────────────────── */}
         <div className="border-t pt-4 space-y-4">
@@ -1044,4 +1096,4 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
       </DialogContent>
     </Dialog>
   );
-} 
+}
