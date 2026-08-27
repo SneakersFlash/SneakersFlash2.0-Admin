@@ -97,6 +97,11 @@ const resolveAwb = (order: Order | any): string => {
   return '';
 };
 
+const isInstantCourierOrder = (order: Order | any): boolean => {
+  const courier = String(order?.courier?.name || order?.courierName || '').toUpperCase();
+  return courier.includes('GOSEND') || courier.includes('GRAB');
+};
+
 const PAYMENT_LABELS: Record<string, string> = {
   bca_va: 'BCA Virtual Account',
   bni_va: 'BNI Virtual Account',
@@ -157,9 +162,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     setKomerceStatus(null);
 
     // Auto-fetch Komerce live tracking URL untuk instant courier
-    const courierUpper = (order?.courier?.name || order?.courierName || '').toUpperCase();
-    const isInstant = courierUpper.includes('GOSEND') || courierUpper.includes('GRAB');
-    if (isInstant && order?.komerceOrderId) {
+    if (isInstantCourierOrder(order) && order?.komerceOrderId) {
       api.get(`/logistics/komerce-detail/${order.komerceOrderId}`)
         .then(({ data }) => {
           setKomerceStatus({ driverName: data.driverName, driverPhone: data.driverPhone });
@@ -179,15 +182,31 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     const isLionParcelOrder = order.shippingProvider === 'LION_PARCEL';
-    // LP orders sudah punya STT dari backend — skip validasi resi manual
-    if (newStatus === 'shipped' && !isLionParcelOrder && !trackingNumber.trim()) {
+    const isInstantOrder = isInstantCourierOrder(order);
+    // LP sudah punya STT dari backend, sedangkan kurir instant memakai link
+    // tracking dan memang tidak selalu menerbitkan AWB/resi.
+    if (newStatus === 'shipped' && !isLionParcelOrder && !isInstantOrder && !trackingNumber.trim()) {
       return toast.error('Nomor Resi wajib diisi untuk mengirim barang secara manual!');
     }
     try {
       setIsProcessing(true);
+
+      // Admin tidak perlu menekan "Simpan Link" lebih dulu. Kalau link instant
+      // diubah di input, simpan sebelum status dipindah agar customer langsung
+      // memperoleh link tracking ketika order menjadi shipped.
+      const trackingUrl = deeplinkInput.trim();
+      if (
+        newStatus === 'shipped' &&
+        isInstantOrder &&
+        trackingUrl &&
+        trackingUrl !== String(order.deeplinkUrl || '').trim()
+      ) {
+        await OrdersService.updateDeeplinkUrl(String(order.id), trackingUrl);
+      }
+
       await OrdersService.updateStatus(String(order.id), { 
         status: newStatus, 
-        trackingNumber: newStatus === 'shipped' ? trackingNumber : undefined 
+        trackingNumber: newStatus === 'shipped' && !isInstantOrder ? trackingNumber : undefined
       });
       toast.success(`Status pesanan diperbarui menjadi ${ORDER_STATUS_CONFIG[newStatus]?.label || newStatus}`);
       onRefresh();
@@ -510,6 +529,13 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   };
 
   const handleTrackOrder = async () => {
+    if (isInstantCourierOrder(order)) {
+      const trackingUrl = deeplinkInput.trim() || String(order.deeplinkUrl || '').trim();
+      if (!trackingUrl) return toast.error('Link tracking kurir instant belum tersedia.');
+      window.open(trackingUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     const isLionParcel = order.shippingProvider === 'LION_PARCEL';
 
     // LP order: gunakan STT number (99LP...) bukan stt_id (angka)
@@ -723,7 +749,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                   <>
                     <div className="space-y-1">
                       <label className="text-sm font-bold text-indigo-900">Kurir Instant ({courierUpper})</label>
-                      <p className="text-xs text-indigo-700">Kemas barang dan cetak label. Tempel link tracking Gosend/Grab di bawah (opsional).</p>
+                      <p className="text-xs text-indigo-700">Kemas barang dan cetak label. Link tracking di bawah akan otomatis disimpan saat pesanan ditandai dikirim.</p>
                     </div>
                     {komerceStatus?.driverName && (
                       <p className="text-xs text-indigo-700">
@@ -746,7 +772,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                       <Button variant="outline" onClick={handlePrintLabel} disabled={isProcessing} className="bg-white text-blue-600 border-blue-200 hover:bg-blue-50 w-1/3">
                         <Printer className="w-4 h-4 mr-2" /> Cetak Label
                       </Button>
-                      <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
+                      <Button onClick={() => handleUpdateStatus('shipped')} disabled={isProcessing || isSavingDeeplink} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-1">
                         <Truck className="w-4 h-4 mr-2" /> Tandai Dikirim
                       </Button>
                     </div>
