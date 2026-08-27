@@ -1,6 +1,6 @@
 // src/components/module/order/OrderDetailModal.tsx
 import { useState, useEffect } from 'react';
-import { Package, Truck, CheckCircle2, User, MapPin, Phone, Printer, TrendingUp } from 'lucide-react';
+import { Package, Truck, CheckCircle2, User, MapPin, Phone, Printer, TrendingUp, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -537,13 +537,12 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     }
 
     const isLionParcel = order.shippingProvider === 'LION_PARCEL';
-
-    // LP order: gunakan STT number (99LP...) bukan stt_id (angka)
-    const awb = isLionParcel
-      ? (order.trackingNumber || order.courier?.trackingNumber || order.awbTrackingNumber)
-      : (order.awb || order.trackingNumber || order.courier?.trackingNumber);
+    // Satu resolver untuk admin tracking dan label. Ini memastikan AWB asli
+    // dipakai, bukan order_no Komerce (KOM...) yang ditolak RajaOngkir.
+    const awb = resolveAwb(order);
 
     const courier = (order.courierName || order.courier?.name || '').toLowerCase();
+    const lastPhone = order.address?.phone || order.user?.phone || '';
 
     if (!awb) return toast.error('Nomor resi belum tersedia untuk pesanan ini.');
     if (!isLionParcel && !courier) return toast.error('Nama kurir tidak ditemukan.');
@@ -554,9 +553,14 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
         awb,
         courier,
         shippingProvider: order.shippingProvider ?? null,
+        lastPhone,
       });
       setTrackingData(result as LionParcelTrackingResult | TrackingResult);
-      toast.success('Berhasil memuat status pengiriman');
+      if ('trackingPending' in result && result.trackingPending) {
+        toast.info(result.message || 'Resi belum aktif di sistem kurir.');
+      } else {
+        toast.success('Berhasil memuat status pengiriman');
+      }
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -851,7 +855,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
               <div className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-4 rounded-lg border gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Nomor Resi Pengiriman</p>
-                  <p className="font-bold text-lg font-mono tracking-wider text-gray-900">{order.trackingNumber || trackingNumber || '-'}</p>
+                  <p className="font-bold text-lg font-mono tracking-wider text-gray-900">{resolveAwb(order) || trackingNumber || '-'}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-1">
@@ -1058,8 +1062,24 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 );
               })()}
 
+              {/* Resi Komerce sudah dibuat, tapi belum dipindai kurir. */}
+              {trackingData && 'trackingPending' in trackingData && trackingData.trackingPending && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-start gap-3">
+                    <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-900">Resi belum aktif di sistem kurir</p>
+                      <p className="mt-1 text-xs text-amber-700">{trackingData.message}</p>
+                      <p className="mt-2 text-xs font-mono font-semibold text-amber-900">
+                        {trackingData.summary?.waybill_number}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* TAMPILAN TIMELINE TRACKING (Komerce / RajaOngkir) */}
-              {trackingData && (trackingData as any).manifest && (
+              {trackingData && (trackingData as any).manifest && !('trackingPending' in trackingData && trackingData.trackingPending) && (
                 <div className="bg-white border rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">

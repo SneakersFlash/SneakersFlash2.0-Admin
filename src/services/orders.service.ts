@@ -61,6 +61,8 @@ export interface TrackingManifest {
 
 export interface TrackingResult {
   delivered: boolean;
+  trackingPending?: boolean;
+  message?: string;
   summary: {
     courier_code:   string;
     courier_name:   string;
@@ -193,8 +195,9 @@ const OrdersService = {
    * @param awb     Nomor resi
    * @param courier Kode kurir lowercase (gosend, grabexpress, dll)
    */
-  async trackKomerce(awb: string, courier: string): Promise<TrackingResult> {
+  async trackKomerce(awb: string, courier: string, lastPhone?: string): Promise<TrackingResult> {
     const params: Record<string, string> = { courier };
+    if (lastPhone) params.last_phone = lastPhone.replace(/\D/g, '').slice(-5);
     const { data } = await api.get<TrackingResult>(`/logistics/track/${awb}`, { params });
     return data;
   },
@@ -208,12 +211,13 @@ const OrdersService = {
     awb: string;
     courier: string;
     shippingProvider?: 'LION_PARCEL' | 'KOMERCE' | null;
+    lastPhone?: string;
   }): Promise<LionParcelTrackingResult | TrackingResult> {
-    const { awb, courier, shippingProvider } = params;
+    const { awb, courier, shippingProvider, lastPhone } = params;
     if (shippingProvider === 'LION_PARCEL') {
       return this.trackLionParcel(awb);
     }
-    return this.trackKomerce(awb, courier);
+    return this.trackKomerce(awb, courier, lastPhone);
   },
 
   async updateDeeplinkUrl(orderId: string, deeplinkUrl: string) {
