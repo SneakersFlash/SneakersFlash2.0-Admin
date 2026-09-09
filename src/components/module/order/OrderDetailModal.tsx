@@ -140,6 +140,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   const [deeplinkInput, setDeeplinkInput] = useState('');
   const [isSavingDeeplink, setIsSavingDeeplink] = useState(false);
   const [komerceStatus, setKomerceStatus] = useState<{ driverName?: string; driverPhone?: string } | null>(null);
+  // Detail lengkap dari GET /orders/:id. Daftar order tidak membawa detail
+  // voucher & mutasi FlashPoint (sengaja, biar query daftar tetap ringan), jadi
+  // rincian potongan diambil sekali saat modal dibuka.
+  const [detail, setDetail] = useState<any | null>(null);
 
   useEffect(() => {
     // `awb` = resi kurir asli (terisi saat pickup). Didahulukan supaya prefill
@@ -160,6 +164,15 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     setCancelReason('');
     setTrackingData(null);
     setKomerceStatus(null);
+    setDetail(null);
+
+    // Ambil rincian potongan (voucher + FlashPoint). Kalau gagal, modal tetap
+    // jalan memakai angka dari daftar order — cuma detail voucher yang hilang.
+    if (order?.id) {
+      OrdersService.getOrder(String(order.id))
+        .then((full) => setDetail(full))
+        .catch(() => {});
+    }
 
     // Auto-fetch Komerce live tracking URL untuk instant courier
     if (isInstantCourierOrder(order) && order?.komerceOrderId) {
@@ -179,6 +192,43 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   if (!order) return null;
 
   const statusConf = ORDER_STATUS_CONFIG[order.status as OrderStatus];
+
+  // ── Rincian potongan & biaya ────────────────────────────────────────────────
+  // `detail` (GET /orders/:id) ditumpuk di atas data daftar order karena hanya
+  // dia yang membawa detail voucher dan mutasi FlashPoint.
+  const fin: any = { ...order, ...(detail ?? {}) };
+  const rp = (n: number) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+
+  const subtotalBarang   = Number(fin.subtotal ?? 0);
+  const ongkir           = Number(fin.shippingCost ?? fin.courier?.cost ?? 0);
+  const subsidiOngkir    = Number(fin.shippingSubsidy ?? 0);
+  const pajak            = Number(fin.taxAmount ?? 0);
+  const kodeUnik         = Number(fin.uniqueCode ?? 0);
+  const diskonVoucher    = Number(fin.discountAmount ?? fin.discountTotal ?? 0);
+  const poinDipakai      = Number(fin.pointsRedeemed ?? 0);
+  const cashbackOngkir   = Number(fin.shippingCashback ?? 0);
+  const totalDibayar     = Number(fin.finalAmount ?? fin.total ?? 0);
+  const totalPotongan    = subsidiOngkir + diskonVoucher + poinDipakai;
+
+  // Rumus yang dipakai backend saat checkout. Kalau hasilnya beda dari
+  // finalAmount yang tersimpan, angkanya ditandai — jangan didiamkan, itu
+  // artinya ada potongan yang tidak tercatat di kolom mana pun.
+  const totalHitungUlang =
+    subtotalBarang + ongkir - subsidiOngkir + pajak + kodeUnik - diskonVoucher - poinDipakai;
+  const totalTidakCocok = Math.abs(totalHitungUlang - totalDibayar) >= 1;
+
+  const poinMutasi: any[] = Array.isArray(fin.pointsTransactions) ? fin.pointsTransactions : [];
+  const sumPoin = (type: string) =>
+    poinMutasi.filter((t) => t.type === type).reduce((acc, t) => acc + Math.abs(Number(t.amount || 0)), 0);
+  const poinDidapat      = sumPoin('earn');
+  const poinDikembalikan = sumPoin('refund');
+
+  const v = fin.voucher;
+  const voucherAturan = v
+    ? v.discountType === 'percentage'
+      ? `${Number(v.discountValue)}%${v.maxDiscountAmount ? ` · maks ${rp(v.maxDiscountAmount)}` : ''}`
+      : `potongan tetap ${rp(v.discountValue)}`
+    : null;
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     const isLionParcelOrder = order.shippingProvider === 'LION_PARCEL';
@@ -678,10 +728,111 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 </div>
               ))}
               <Separator className="my-2" />
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total Pembayaran</span>
-                <span className="font-bold text-emerald-600">Rp {Number(order.finalAmount || order.total).toLocaleString('id-ID')}</span>
+
+              {/* Rincian potongan: setiap komponen yang membentuk total ditulis
+                  satu baris, biar admin bisa jawab "kenapa cuma bayar segini". */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Subtotal barang</span>
+                  <span className="text-gray-900 tabular-nums">{rp(subtotalBarang)}</span>
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">
+                    Ongkir
+                    {(order.courierName || order.courier?.name) && (
+                      <span className="text-xs text-gray-400"> ({order.courierName || order.courier?.name} {order.courierService || order.courier?.service})</span>
+                    )}
+                  </span>
+                  <span className="text-gray-900 tabular-nums">{rp(ongkir)}</span>
+                </div>
+
+                {subsidiOngkir > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-700">
+                      Subsidi ongkir
+                      <span className="text-xs text-emerald-600/70"> (maks Rp 50.000)</span>
+                    </span>
+                    <span className="text-emerald-700 tabular-nums">− {rp(subsidiOngkir)}</span>
+                  </div>
+                )}
+
+                {pajak > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Pajak</span>
+                    <span className="text-gray-900 tabular-nums">{rp(pajak)}</span>
+                  </div>
+                )}
+
+                {kodeUnik !== 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Kode unik</span>
+                    <span className="text-gray-900 tabular-nums">{rp(kodeUnik)}</span>
+                  </div>
+                )}
+
+                {(diskonVoucher > 0 || fin.voucherCode) && (
+                  <div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-emerald-700">
+                        Voucher <span className="font-mono font-semibold">{fin.voucherCode || v?.code || '-'}</span>
+                      </span>
+                      <span className="text-emerald-700 tabular-nums">− {rp(diskonVoucher)}</span>
+                    </div>
+                    {(v?.name || voucherAturan) && (
+                      <p className="text-[11px] text-gray-500 pl-1">
+                        {[v?.name, voucherAturan].filter(Boolean).join(' · ')}
+                        {v?.campaignName ? ` · kampanye ${v.campaignName}` : ''}
+                        {v?.scopedEventTitle ? ` · khusus event ${v.scopedEventTitle}` : ''}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {poinDipakai > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-700">
+                      FlashPoint dipakai
+                      <span className="text-xs text-emerald-600/70"> ({poinDipakai.toLocaleString('id-ID')} poin)</span>
+                    </span>
+                    <span className="text-emerald-700 tabular-nums">− {rp(poinDipakai)}</span>
+                  </div>
+                )}
+
+                {totalPotongan > 0 && (
+                  <div className="flex justify-between text-xs pt-1 border-t border-dashed border-gray-200">
+                    <span className="text-gray-500">Total potongan</span>
+                    <span className="font-semibold text-emerald-700 tabular-nums">− {rp(totalPotongan)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-sm pt-1.5 border-t border-gray-200">
+                  <span className="font-semibold text-gray-700">Total Pembayaran</span>
+                  <span className="font-bold text-emerald-600 tabular-nums">{rp(totalDibayar)}</span>
+                </div>
+
+                {totalTidakCocok && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    Rincian di atas berjumlah {rp(totalHitungUlang)}, beda {rp(Math.abs(totalHitungUlang - totalDibayar))} dari total tersimpan. Ada potongan yang tidak tercatat per komponen.
+                  </p>
+                )}
               </div>
+
+              {(cashbackOngkir > 0 || poinDidapat > 0 || poinDikembalikan > 0) && (
+                <div className="text-[11px] text-gray-500 space-y-0.5 pt-1">
+                  {cashbackOngkir > 0 && (
+                    <p>Cashback ongkir dari kurir: {rp(cashbackOngkir)} — tidak memotong tagihan customer.</p>
+                  )}
+                  {poinDidapat > 0 && (
+                    <p>FlashPoint cair dari pesanan ini: +{poinDidapat.toLocaleString('id-ID')} poin.</p>
+                  )}
+                  {poinDikembalikan > 0 && (
+                    <p>FlashPoint dikembalikan (pesanan batal): +{poinDikembalikan.toLocaleString('id-ID')} poin.</p>
+                  )}
+                </div>
+              )}
+
+              <Separator className="my-2" />
               <div className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-500">Metode Pembayaran</span>
                 <span className="font-semibold text-right text-gray-900">

@@ -64,6 +64,28 @@ export interface OrderUser {
   // id tidak di-return oleh backend
 }
 
+export interface OrderVoucherDetail {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  discountType: 'percentage' | 'fixed_amount';
+  discountValue: number;
+  maxDiscountAmount?: number | null;
+  minPurchaseAmount: number;
+  campaignName?: string | null;
+  scopedEventTitle?: string | null; // voucher yang cuma berlaku untuk satu event
+}
+
+export interface OrderPointsTransaction {
+  id: string;
+  type: 'earn' | 'redeem' | 'refund' | 'adjustment';
+  amount: number;       // bertanda: negatif = poin dipotong
+  balanceAfter: number;
+  note?: string | null;
+  createdAt: string;
+}
+
 // ─── Main Order entity ────────────────────────────────────────────────────────
 
 export interface Order {
@@ -81,8 +103,22 @@ export interface Order {
 
   subtotal: number;
   shippingCost: number;
-  discountAmount: number;
+  discountAmount: number;   // potongan voucher (orders.discount_total)
   total: number;
+
+  // ─── Komponen potongan & biaya lain ────────────────────────────────────────
+  // final = subtotal + shippingCost - shippingSubsidy + taxAmount + uniqueCode
+  //         - discountAmount - pointsRedeemed
+  // shippingCashback TIDAK memotong tagihan customer (cashback kurir ke merchant).
+  shippingSubsidy?:  number;
+  shippingCashback?: number;
+  taxAmount?:        number;
+  uniqueCode?:       number;
+
+  // Hanya terisi di GET /orders/:id, bukan di daftar order.
+  voucher?: OrderVoucherDetail | null;
+  voucherUsages?: { id: string; discountAmount: number; createdAt: string }[];
+  pointsTransactions?: OrderPointsTransaction[];
 
   // ─── Lion Parcel / Komerce routing fields ──────────────────────────────────
   komerceOrderId?:    string | null;
