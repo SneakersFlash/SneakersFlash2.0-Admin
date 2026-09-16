@@ -12,9 +12,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import BannersService from '@/services/banners.service';
-import api, { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
 import type { Banner, CreateBannerPayload, BannerPosition, Platform } from '@/types/cms.types';
 
+import { uploadImage, MAX_UPLOAD_MB } from '@/lib/upload';
 interface BannerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -70,6 +71,12 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) return toast.error('Hanya gambar!');
+      // Dicegat di sini supaya tidak terkirim dulu lalu ditolak nginx 413.
+      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        return toast.error(
+          `File ${(file.size / 1024 / 1024).toFixed(1)} MB, batasnya ${MAX_UPLOAD_MB} MB. Kompres dulu.`,
+        );
+      }
       setFiles(prev => ({ ...prev, [type]: file }));
       setPreviews(prev => ({ ...prev, [type]: URL.createObjectURL(file) }));
     }
@@ -81,15 +88,6 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
     setFormData(prev => ({ ...prev, [type === 'desktop' ? 'imageDesktopUrl' : 'imageMobileUrl']: '' }));
   };
 
-  const uploadImage = async (file: File) => {
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-    const { data } = await api.post('/media/upload', uploadData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    return data.url ? (data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`) : `${baseUrl}/uploads/${data.filename || data}`;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,6 +205,7 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
                 </div>
               )}
               <input ref={desktopInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('desktop', e)} />
+              <p className="text-[10px] text-gray-400">Maks {MAX_UPLOAD_MB} MB &middot; animasi (WebP/GIF) didukung</p>
             </div>
 
             {/* Mobile Upload */}
@@ -225,6 +224,7 @@ export default function BannerModal({ isOpen, onClose, onSuccess, initialData }:
                 </div>
               )}
               <input ref={mobileInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('mobile', e)} />
+              <p className="text-[10px] text-gray-400">Maks {MAX_UPLOAD_MB} MB &middot; animasi (WebP/GIF) didukung</p>
             </div>
           </div>
           

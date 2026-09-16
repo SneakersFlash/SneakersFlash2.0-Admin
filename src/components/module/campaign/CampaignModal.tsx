@@ -10,9 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CampaignsService from '@/services/campaigns.service';
-import api, { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
 import type { CampaignEvent, CreateCampaignPayload, Platform } from '@/types/marketing.types';
 
+import { uploadImage, MAX_UPLOAD_MB } from '@/lib/upload';
 interface CampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -101,6 +102,12 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) return toast.error('Hanya gambar!');
+      // Dicegat di sini supaya tidak terkirim dulu lalu ditolak nginx 413.
+      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        return toast.error(
+          `File ${(file.size / 1024 / 1024).toFixed(1)} MB, batasnya ${MAX_UPLOAD_MB} MB. Kompres dulu.`,
+        );
+      }
       setFiles(prev => ({ ...prev, [type]: file }));
       setPreviews(prev => ({ ...prev, [type]: URL.createObjectURL(file) }));
     }
@@ -113,15 +120,6 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
     setFormData(prev => ({ ...prev, [type === 'desktop' ? 'bannerDesktopUrl' : 'bannerMobileUrl']: '' }));
   };
 
-  const uploadImage = async (file: File) => {
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-    const { data } = await api.post('/media/upload', uploadData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    return data.url ? (data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`) : `${baseUrl}/uploads/${data.filename || data}`;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,6 +245,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                   <span className="text-xs font-medium">Klik pilih gambar Desktop</span>
                   <span className="text-[10px] text-gray-400 mt-1">1600 x 500 px</span>
                   <span className="text-[10px] text-gray-400 mt-1">Rasio memanjang (Horizontal)</span>
+                  <span className="text-[10px] text-gray-400">Maks {MAX_UPLOAD_MB} MB &middot; animasi (WebP/GIF) didukung</span>
                 </div>
               )}
               <input ref={desktopInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('desktop', e)} />
@@ -267,6 +266,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess, initialData 
                   <span className="text-xs font-medium">Klik pilih gambar Mobile</span>
                   <span className="text-[10px] text-gray-400 mt-1">1280 x 930 px</span>
                   <span className="text-[10px] text-gray-400 mt-1">Rasio meninggi (Vertical/Square)</span>
+                  <span className="text-[10px] text-gray-400">Maks {MAX_UPLOAD_MB} MB &middot; animasi (WebP/GIF) didukung</span>
                 </div>
               )}
               <input ref={mobileInputRef} type="file" className="hidden" onChange={(e) => handleFileChange('mobile', e)} />

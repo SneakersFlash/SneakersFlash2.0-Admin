@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import BrandsService from '@/services/brands.service';
-import api, { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
 import type { Brand, CreateBrandPayload } from '@/types/master.types';
 
+import { uploadImage } from '@/lib/upload';
 interface BrandModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -83,22 +84,7 @@ export default function BrandModal({
 
       // 1. Upload file baru jika ada
       if (selectedFile) {
-        const uploadData = new FormData();
-        uploadData.append('file', selectedFile);
-
-        const { data } = await api.post('/media/upload', uploadData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-        
-        if (data.url) {
-          finalLogoUrl = data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`;
-        } else if (data.filename) {
-          finalLogoUrl = `${baseUrl}/uploads/${data.filename}`;
-        } else if (typeof data === 'string') {
-          finalLogoUrl = `${baseUrl}/uploads/${data}`;
-        }
+        finalLogoUrl = await uploadImage(selectedFile);
       }
 
       // 2. Susun Payload

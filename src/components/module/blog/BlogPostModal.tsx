@@ -14,7 +14,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import BlogService from '@/services/blog.service';
-import api, { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
+import { uploadImage } from '@/lib/upload';
 import type {
   BlogCategory, BlogPost, BlogPostStatus, CreateBlogPostPayload,
 } from '@/types/cms.types';
@@ -174,19 +175,6 @@ export default function BlogPostModal({
     }));
   };
 
-  const uploadImage = async (file: File) => {
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-    const { data } = await api.post('/media/upload', uploadData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    if (data.url) {
-      return data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`;
-    }
-    if (data.filename) return `${baseUrl}/uploads/${data.filename}`;
-    return `${baseUrl}/uploads/${data}`;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -10,9 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import BlogService from '@/services/blog.service';
-import api, { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
 import type { BlogCategory, CreateBlogCategoryPayload } from '@/types/cms.types';
 
+import { uploadImage } from '@/lib/upload';
 interface BlogCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -97,19 +98,6 @@ export default function BlogCategoryModal({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const uploadImage = async (file: File) => {
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-    const { data } = await api.post('/media/upload', uploadData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    if (data.url) {
-      return data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`;
-    }
-    if (data.filename) return `${baseUrl}/uploads/${data.filename}`;
-    return `${baseUrl}/uploads/${data}`;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

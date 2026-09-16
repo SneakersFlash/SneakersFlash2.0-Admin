@@ -8,6 +8,12 @@ import Cookies from 'js-cookie';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+// Harus SEJALAN dengan MAX_UPLOAD_BYTES di backend (media.controller.ts) dan
+// client_max_body_size location /api/v1/media/upload di nginx. Kalau yang di sini
+// lebih besar, berkasnya berangkat lalu ditolak nginx dengan badan HTML — dan
+// pesan errornya jadi tidak terbaca.
+export const MAX_UPLOAD_MB = 25;
+
 const ACCESS_TOKEN_KEY = 'sf_access_token';
 const REFRESH_TOKEN_KEY = 'sf_refresh_token';
 
@@ -153,6 +159,13 @@ export default api;
 
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    // 413 dari nginx berbadan HTML, bukan JSON, jadi tidak punya `.message` dan
+    // dulu jatuh ke fallback "Request failed with status code 413". Ditangani
+    // duluan supaya batas ukuran selalu disebut apa pun yang menolak.
+    if (error.response?.status === 413) {
+      return `Ukuran file melebihi batas ${MAX_UPLOAD_MB} MB. Kompres dulu gambarnya, atau pakai versi yang lebih kecil.`;
+    }
+
     const data = error.response?.data;
     if (data?.message) {
       return Array.isArray(data.message)

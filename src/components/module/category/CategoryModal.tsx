@@ -11,9 +11,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import CategoriesService from '@/services/categories.service';
-import api, { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
 import type { Category, CreateCategoryPayload } from '@/types/master.types';
 
+import { uploadImage } from '@/lib/upload';
 interface CategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -96,23 +97,7 @@ export default function CategoryModal({
 
       // 1. Jika ada file baru yang dipilih, UPLOAD DULU ke backend
       if (selectedFile) {
-        const uploadData = new FormData();
-        uploadData.append('file', selectedFile);
-
-        const { data } = await api.post('/media/upload', uploadData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-        
-        // Ekstrak URL dari response backend
-        if (data.url) {
-          finalImageUrl = data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`;
-        } else if (data.filename) {
-          finalImageUrl = `${baseUrl}/uploads/${data.filename}`;
-        } else if (typeof data === 'string') {
-          finalImageUrl = `${baseUrl}/uploads/${data}`;
-        }
+        finalImageUrl = await uploadImage(selectedFile);
       }
 
       // 2. Susun Payload untuk disimpan ke tabel Categories
