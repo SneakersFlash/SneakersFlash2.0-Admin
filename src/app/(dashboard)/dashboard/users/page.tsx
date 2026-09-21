@@ -3,13 +3,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Users, Mail, Phone, Calendar, ShieldCheck, Star,
-  Search, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, Trash2, Eye,
+  Search, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, Trash2, Eye, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import UsersService from '@/services/users.service';
 import type { User, UserQueryParams, UserListMeta } from '@/types/user.types';
 import PageHeader from '@/components/shared/PageHeader';
 import UserDetailModal from '@/components/module/user/UserDetailModal';
+import BulkPointsModal from '@/components/module/user/BulkPointsModal';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ export default function UsersPage() {
 
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isBulkPointsOpen, setIsBulkPointsOpen] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -116,6 +118,14 @@ export default function UsersPage() {
         title="Manajemen Pengguna"
         description="Kelola daftar pelanggan dan admin toko."
         icon={Users}
+        actions={
+          <Button
+            onClick={() => setIsBulkPointsOpen(true)}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            <Sparkles className="w-4 h-4 mr-2" /> Kasih Poin Massal
+          </Button>
+        }
       />
 
       {/* Filter Bar */}
@@ -355,6 +365,12 @@ export default function UsersPage() {
         userId={selectedUserId}
         isOpen={isDetailOpen}
         onClose={() => { setIsDetailOpen(false); setSelectedUserId(null); }}
+        onRefresh={fetchUsers}
+      />
+
+      <BulkPointsModal
+        isOpen={isBulkPointsOpen}
+        onClose={() => setIsBulkPointsOpen(false)}
         onRefresh={fetchUsers}
       />
 

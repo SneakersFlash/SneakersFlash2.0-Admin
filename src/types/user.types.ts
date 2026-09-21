@@ -1,5 +1,11 @@
 // Prisma Decimal fields arrive as a Decimal.js internal object when not post-processed
-export type PrismaDecimal = number | { s: number; e: number; d: number[] };
+// Endpoint admin menyerialkan Decimal Prisma jadi string (lihat konvensi di
+// users.service.ts), sementara endpoint lain bisa mengirim angka atau objek
+// Decimal mentah. `toNum()` menangani ketiganya.
+export type PrismaDecimal =
+  | number
+  | string
+  | { s: number; e: number; d: number[] };
 
 export interface User {
   id: string | number;
@@ -69,4 +75,41 @@ export interface AdminUpdateUserPayload {
   customerTier?: string;
   isActive?: boolean;
   pointsBalance?: number;
+}
+
+// ── FlashPoint manual (admin) ────────────────────────────────────────────────
+
+export interface GrantPointsPayload {
+  amount: number;
+  note: string;
+}
+
+export interface GrantPointsResult {
+  id: string;
+  name: string | null;
+  email: string | null;
+  amount: number;
+  balanceBefore: string;
+  balanceAfter: string;
+}
+
+export interface GrantPointsBulkPayload {
+  identifiers: string[];
+  amount: number;
+  note: string;
+}
+
+export interface GrantPointsBulkResult {
+  batchRef: string;
+  amount: number;
+  totalBerhasil: number;
+  totalGagal: number;
+  berhasil: Array<{
+    identifier: string;
+    userId: string;
+    name: string | null;
+    email: string | null;
+    balanceAfter: string;
+  }>;
+  gagal: Array<{ identifier: string; alasan: string }>;
 }

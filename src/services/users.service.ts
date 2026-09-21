@@ -5,6 +5,10 @@ import type {
   UserListResponse,
   UserQueryParams,
   AdminUpdateUserPayload,
+  GrantPointsPayload,
+  GrantPointsResult,
+  GrantPointsBulkPayload,
+  GrantPointsBulkResult,
 } from '@/types/user.types';
 
 const UsersService = {
@@ -30,6 +34,18 @@ const UsersService = {
 
   async resetPassword(id: string | number, newPassword: string): Promise<{ message: string }> {
     const { data } = await api.patch<{ message: string }>(`/users/${id}/reset-password`, { newPassword });
+    return data;
+  },
+
+  // Tembak poin ke satu user. Berbasis SELISIH, bukan saldo akhir — backend
+  // yang menjumlahkan, jadi aman walau user sedang checkout.
+  async grantPoints(id: string | number, payload: GrantPointsPayload): Promise<GrantPointsResult> {
+    const { data } = await api.post<GrantPointsResult>(`/users/${id}/points`, payload);
+    return data;
+  },
+
+  async grantPointsBulk(payload: GrantPointsBulkPayload): Promise<GrantPointsBulkResult> {
+    const { data } = await api.post<GrantPointsBulkResult>('/users/points/bulk', payload);
     return data;
   },
 

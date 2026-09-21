@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   User, Mail, Phone, ShieldCheck, Star, MapPin,
-  Package, MessageSquare, Heart, Key, Loader2,
+  Package, MessageSquare, Heart, Key, Loader2, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import UsersService from '@/services/users.service';
 import { getErrorMessage } from '@/lib/api';
@@ -36,16 +37,23 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [tab, setTab] = useState<'info' | 'edit' | 'password'>('info');
+  const [tab, setTab] = useState<'info' | 'edit' | 'password' | 'points'>('info');
 
   const [form, setForm] = useState<AdminUpdateUserPayload>({});
   const [newPassword, setNewPassword] = useState('');
+
+  // Form "Kasih Poin". Dipisah dari `form` di atas karena jalurnya beda:
+  // yang ini menambah/mengurangi, bukan menimpa saldo.
+  const [pointsAmount, setPointsAmount] = useState<string>('');
+  const [pointsNote, setPointsNote] = useState('');
 
   useEffect(() => {
     if (!userId || !isOpen) return;
     setTab('info');
     setForm({});
     setNewPassword('');
+    setPointsAmount('');
+    setPointsNote('');
     setIsLoading(true);
     UsersService.getById(userId)
       .then((data) => {
@@ -92,6 +100,35 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
       toast.success('Password berhasil direset');
       setNewPassword('');
       setTab('info');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleGrantPoints = async () => {
+    if (!user) return;
+    const amount = Number(pointsAmount);
+    if (!Number.isInteger(amount) || amount === 0)
+      return toast.error('Jumlah poin harus bilangan bulat dan tidak boleh 0');
+    if (pointsNote.trim().length < 3)
+      return toast.error('Alasan wajib diisi minimal 3 karakter');
+
+    try {
+      setIsSaving(true);
+      const hasil = await UsersService.grantPoints(user.id, {
+        amount,
+        note: pointsNote.trim(),
+      });
+      toast.success(
+        `${amount > 0 ? 'Ditambah' : 'Dikurangi'} ${Math.abs(amount).toLocaleString('id-ID')} poin. Saldo sekarang ${toNum(hasil.balanceAfter).toLocaleString('id-ID')} pts`,
+      );
+      setUser({ ...user, pointsBalance: hasil.balanceAfter });
+      setPointsAmount('');
+      setPointsNote('');
+      setTab('info');
+      onRefresh();
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -180,7 +217,17 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-gray-400">Poin</p>
-                    <p className="font-semibold text-gray-800">{toNum(user.pointsBalance).toLocaleString('id-ID')} pts</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-800">{toNum(user.pointsBalance).toLocaleString('id-ID')} pts</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={() => setTab('points')}
+                      >
+                        <Sparkles className="w-3 h-3 mr-1" /> Kasih Poin
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-gray-400">Bergabung</p>
@@ -341,6 +388,70 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
                   >
                     {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Reset Password
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab: Kasih Poin */}
+            {tab === 'points' && (
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  Poin <strong>ditambahkan</strong> ke saldo saat ini, bukan menimpa.
+                  Isi angka minus untuk menarik kembali poin yang salah tembak.
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
+                  <span className="text-xs text-gray-500">Saldo sekarang</span>
+                  <span className="font-semibold text-gray-800">
+                    {toNum(user.pointsBalance).toLocaleString('id-ID')} pts
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="grant-amount" className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" /> Jumlah Poin
+                  </Label>
+                  <Input
+                    id="grant-amount"
+                    type="number"
+                    placeholder="contoh: 50000"
+                    value={pointsAmount}
+                    onChange={(e) => setPointsAmount(e.target.value)}
+                  />
+                  {Number(pointsAmount) !== 0 && !isNaN(Number(pointsAmount)) && (
+                    <p className="text-xs text-gray-500">
+                      Saldo jadi{' '}
+                      <strong>
+                        {(toNum(user.pointsBalance) + Number(pointsAmount)).toLocaleString('id-ID')} pts
+                      </strong>
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="grant-note">Alasan</Label>
+                  <Textarea
+                    id="grant-note"
+                    rows={2}
+                    placeholder="contoh: Pemenang giveaway live 21 Sep"
+                    value={pointsNote}
+                    onChange={(e) => setPointsNote(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-400">
+                    Alasan ikut tercatat di riwayat poin, jangan dikosongkan.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setTab('info')} disabled={isSaving}>Batal</Button>
+                  <Button
+                    onClick={handleGrantPoints}
+                    disabled={isSaving || !pointsAmount || pointsNote.trim().length < 3}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Tembak Poin
                   </Button>
                 </div>
               </div>

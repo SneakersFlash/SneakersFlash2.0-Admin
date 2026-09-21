@@ -5,6 +5,12 @@ import api from '@/lib/api';
 import type { Product, CreateProductDto, UpdateProductDto, ProductFilters } from '@/types/product.types';
 import type { Category, CreateCategoryDto } from '@/types/product.types';
 import type { PaginatedResponse, PaginationParams } from '@/types/api.types';
+import type {
+  PriceDrop,
+  PriceDropStatus,
+  CreatePriceDropsPayload,
+  CreatePriceDropsResult,
+} from '@/types/price-drop.types';
 
 const ProductService = {
   // ─── Products ──────────────────────────────────────────────────────────────
@@ -31,6 +37,26 @@ const ProductService = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/products/${id}`);
+  },
+
+  // ─── Price Drop ────────────────────────────────────────────────────────────
+
+  async getPriceDrops(status: PriceDropStatus = 'active'): Promise<PriceDrop[]> {
+    const { data } = await api.get<PriceDrop[]>('/products/price-drops', {
+      params: { status },
+    });
+    return data;
+  },
+
+  async createPriceDrops(payload: CreatePriceDropsPayload): Promise<CreatePriceDropsResult> {
+    const { data } = await api.post<CreatePriceDropsResult>('/products/price-drops', payload);
+    return data;
+  },
+
+  // Tombol "Kembalikan Harga".
+  async endPriceDrop(id: string): Promise<{ message: string }> {
+    const { data } = await api.patch<{ message: string }>(`/products/price-drops/${id}/end`);
+    return data;
   },
 
   async uploadImage(file: File): Promise<string> {
