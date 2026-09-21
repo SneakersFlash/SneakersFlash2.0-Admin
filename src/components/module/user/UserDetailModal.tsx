@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   User, Mail, Phone, ShieldCheck, Star, MapPin,
-  Package, MessageSquare, Heart, Key, Loader2, Sparkles,
+  Package, MessageSquare, Heart, Key, Loader2, Sparkles, History, Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,7 +18,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import UsersService from '@/services/users.service';
 import { getErrorMessage } from '@/lib/api';
 import { toNum } from '@/lib/utils';
-import type { UserDetail, AdminUpdateUserPayload } from '@/types/user.types';
+import type { UserDetail, AdminUpdateUserPayload, PointsHistoryItem } from '@/types/user.types';
+
+const TIPE_POIN: Record<string, string> = {
+  earn: 'dari belanja',
+  redeem: 'dipakai',
+  refund: 'dikembalikan',
+  adjustment: 'manual',
+};
 
 const TIER_CONFIG: Record<string, { label: string; className: string }> = {
   basic:   { label: 'Basic',   className: 'bg-gray-100 text-gray-700' },
@@ -37,7 +44,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [tab, setTab] = useState<'info' | 'edit' | 'password' | 'points'>('info');
+  const [tab, setTab] = useState<'info' | 'edit' | 'password' | 'points' | 'history'>('info');
 
   const [form, setForm] = useState<AdminUpdateUserPayload>({});
   const [newPassword, setNewPassword] = useState('');
@@ -47,6 +54,10 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
   const [pointsAmount, setPointsAmount] = useState<string>('');
   const [pointsNote, setPointsNote] = useState('');
 
+  const [history, setHistory] = useState<PointsHistoryItem[] | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [reversingId, setReversingId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!userId || !isOpen) return;
     setTab('info');
@@ -54,6 +65,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
     setNewPassword('');
     setPointsAmount('');
     setPointsNote('');
+    setHistory(null);
     setIsLoading(true);
     UsersService.getById(userId)
       .then((data) => {
@@ -125,6 +137,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
         `${amount > 0 ? 'Ditambah' : 'Dikurangi'} ${Math.abs(amount).toLocaleString('id-ID')} poin. Saldo sekarang ${toNum(hasil.balanceAfter).toLocaleString('id-ID')} pts`,
       );
       setUser({ ...user, pointsBalance: hasil.balanceAfter });
+      setForm((f) => ({ ...f, pointsBalance: toNum(hasil.balanceAfter) }));
       setPointsAmount('');
       setPointsNote('');
       setTab('info');
@@ -133,6 +146,47 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
       toast.error(getErrorMessage(err));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const muatRiwayat = async (uid: string | number) => {
+    setIsLoadingHistory(true);
+    try {
+      const res = await UsersService.getPointsHistory(uid);
+      setHistory(res.items);
+      // Saldo ikut disegarkan dari sumber yang sama, supaya angka di kartu Poin
+      // maupun form edit tidak berbeda dengan riwayat yang baru dimuat.
+      setUser((u) => (u ? { ...u, pointsBalance: res.pointsBalance } : u));
+      setForm((f) => ({ ...f, pointsBalance: toNum(res.pointsBalance) }));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const bukaRiwayat = () => {
+    setTab('history');
+    if (user) muatRiwayat(user.id);
+  };
+
+  const batalkan = async (row: PointsHistoryItem) => {
+    if (!user) return;
+    const aksi = row.amount > 0 ? 'ditarik dari' : 'dikembalikan ke';
+    if (!window.confirm(
+      `Batalkan perubahan ${Math.abs(row.amount).toLocaleString('id-ID')} poin? Poin akan ${aksi} saldo ${user.name}.`,
+    )) return;
+
+    try {
+      setReversingId(row.id);
+      const res = await UsersService.reversePoints(row.id);
+      toast.success(res.message);
+      await muatRiwayat(user.id);
+      onRefresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setReversingId(null);
     }
   };
 
@@ -226,6 +280,14 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
                         onClick={() => setTab('points')}
                       >
                         <Sparkles className="w-3 h-3 mr-1" /> Kasih Poin
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        onClick={bukaRiwayat}
+                      >
+                        <History className="w-3 h-3 mr-1" /> Riwayat
                       </Button>
                     </div>
                   </div>
@@ -389,6 +451,95 @@ export default function UserDetailModal({ userId, isOpen, onClose, onRefresh }: 
                     {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Reset Password
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab: Riwayat Poin */}
+            {tab === 'history' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
+                  <span className="text-xs text-gray-500">Saldo sekarang</span>
+                  <span className="font-semibold text-gray-800">
+                    {toNum(user.pointsBalance).toLocaleString('id-ID')} pts
+                  </span>
+                </div>
+
+                {isLoadingHistory ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  </div>
+                ) : !history || history.length === 0 ? (
+                  <p className="text-center text-sm text-gray-500 py-8">
+                    Belum ada riwayat poin.
+                  </p>
+                ) : (
+                  <div className="rounded-lg border divide-y max-h-[360px] overflow-y-auto">
+                    {history.map((row) => (
+                      <div key={row.id} className="px-3 py-2.5 flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={
+                                row.amount >= 0
+                                  ? 'font-semibold text-emerald-700'
+                                  : 'font-semibold text-rose-700'
+                              }
+                            >
+                              {row.amount >= 0 ? '+' : '-'}
+                              {Math.abs(row.amount).toLocaleString('id-ID')}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] text-gray-500">
+                              {TIPE_POIN[row.type] ?? row.type}
+                            </Badge>
+                            {row.isReversed && (
+                              <Badge className="bg-gray-100 text-gray-600 border-none text-[10px]">
+                                dibatalkan
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 break-words">
+                            {row.note || '-'}
+                            {row.orderNumber ? ` · ${row.orderNumber}` : ''}
+                          </p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {new Date(row.createdAt).toLocaleString('id-ID', {
+                              day: 'numeric', month: 'short', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                            {' · sisa '}
+                            {toNum(row.balanceAfter).toLocaleString('id-ID')} pts
+                          </p>
+                        </div>
+
+                        {row.canReverse && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs flex-shrink-0"
+                            onClick={() => batalkan(row)}
+                            disabled={reversingId !== null}
+                          >
+                            {reversingId === row.id ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <Undo2 className="w-3 h-3 mr-1" />
+                            )}
+                            Batalkan
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-400">
+                  Hanya perubahan poin oleh admin yang bisa dibatalkan. Bonus,
+                  hadiah game, dan poin dari pesanan tetap mengikuti sumbernya.
+                </p>
+
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => setTab('info')}>Tutup</Button>
                 </div>
               </div>
             )}

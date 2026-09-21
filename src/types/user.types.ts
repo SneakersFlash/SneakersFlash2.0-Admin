@@ -113,3 +113,32 @@ export interface GrantPointsBulkResult {
   }>;
   gagal: Array<{ identifier: string; alasan: string }>;
 }
+
+export type PointsTxType = 'earn' | 'redeem' | 'refund' | 'adjustment';
+
+export interface PointsHistoryItem {
+  id: string;
+  type: PointsTxType;
+  amount: number;
+  balanceAfter: string;
+  note: string | null;
+  orderNumber: string | null;
+  createdAt: string;
+  // Pemberian ini sudah pernah ditarik balik.
+  isReversed: boolean;
+  // Boleh dibatalkan: hanya pemberian manual yang belum dibatalkan.
+  canReverse: boolean;
+}
+
+export interface PointsHistory {
+  pointsBalance: string;
+  items: PointsHistoryItem[];
+}
+
+export interface ReversePointsResult {
+  reversedId: string;
+  userId: string;
+  amount: number;
+  balanceAfter: string;
+  message: string;
+}

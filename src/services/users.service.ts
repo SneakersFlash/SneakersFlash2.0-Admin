@@ -9,6 +9,8 @@ import type {
   GrantPointsResult,
   GrantPointsBulkPayload,
   GrantPointsBulkResult,
+  PointsHistory,
+  ReversePointsResult,
 } from '@/types/user.types';
 
 const UsersService = {
@@ -46,6 +48,18 @@ const UsersService = {
 
   async grantPointsBulk(payload: GrantPointsBulkPayload): Promise<GrantPointsBulkResult> {
     const { data } = await api.post<GrantPointsBulkResult>('/users/points/bulk', payload);
+    return data;
+  },
+
+  async getPointsHistory(id: string | number, limit = 50): Promise<PointsHistory> {
+    const { data } = await api.get<PointsHistory>(`/users/${id}/points`, { params: { limit } });
+    return data;
+  },
+
+  // Tarik balik satu pemberian poin. Backend yang menghitung jumlah kebalikannya,
+  // jadi admin tidak perlu mengingat angkanya.
+  async reversePoints(txId: string): Promise<ReversePointsResult> {
+    const { data } = await api.post<ReversePointsResult>(`/users/points/${txId}/reverse`);
     return data;
   },
 
