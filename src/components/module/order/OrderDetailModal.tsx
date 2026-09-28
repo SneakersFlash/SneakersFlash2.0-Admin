@@ -423,8 +423,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   #order-barcode { height: 7mm; width: auto; max-width: 88mm; display: inline-block; }
 
   /* ---- pengirim ---- */
-  .sname { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; margin-top: 1mm; }
-  .sphone { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; padding-bottom: 2.5mm; }
+  .sender { display: flex; align-items: center; gap: 3mm; padding-top: 1.8mm; padding-bottom: 1.8mm; font-size: 3.4mm; font-weight: 700; white-space: nowrap; }
 
   /* ---- tabel produk ---- */
   table.prod { width: 100%; border-collapse: collapse; }
@@ -487,10 +486,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
       <div class="rule"></div>
 
       <!-- PENGIRIM -->
-      <div class="head pad"><span class="pill">Pengirim</span></div>
-      <div>
-        <div class="sname">${esc(brand.name)}</div>
-        <div class="sphone">${esc(brand.phone)}</div>
+      <div class="sender pad">
+        <span class="pill">Pengirim</span>
+        <span>${esc(brand.name)}</span>
+        <span>${esc(brand.phone)}</span>
       </div>
 
       <div class="rule"></div>
