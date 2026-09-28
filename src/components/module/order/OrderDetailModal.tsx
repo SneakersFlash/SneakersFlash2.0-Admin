@@ -391,7 +391,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   .pad { padding-left: 3.5mm; padding-right: 3.5mm; }
 
   /* ---- logo ---- */
-  .logos { display: flex; justify-content: space-between; align-items: center; gap: 3mm; padding-top: 2.5mm; padding-bottom: 2.5mm; }
+  .logos { display: flex; justify-content: space-between; align-items: center; gap: 3mm; padding-top: 1.5mm; padding-bottom: 1.5mm; }
   .brand-slot, .courier-slot { min-width: 0; }
   .courier-slot { text-align: right; }
   .logos img { max-height: 10mm; max-width: 40mm; width: auto; object-fit: contain; display: block; }
@@ -400,8 +400,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
   .courier-text { font-size: 6.4mm; font-weight: 900; font-style: italic; letter-spacing: -0.3mm; text-align: right; text-transform: uppercase; }
 
   /* ---- barcode ---- */
-  .barcode { text-align: center; padding-top: 3mm; padding-bottom: 2mm; }
-  #barcode { height: 17mm; width: auto; max-width: 88mm; display: inline-block; }
+  .barcode { text-align: center; padding-top: 2mm; padding-bottom: 1.5mm; }
+  #barcode { height: 12mm; width: auto; max-width: 88mm; display: inline-block; }
   .barnum { font-family: "Courier New", monospace; font-size: 5.3mm; font-weight: 700; letter-spacing: 0.3mm; margin-top: 0.5mm; }
   .barnum.empty { font-size: 3.4mm; letter-spacing: 0.6mm; color: #555; }
 
@@ -417,10 +417,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   .note { font-size: 2.9mm; padding-top: 2mm; padding-bottom: 2mm; }
 
-  .order { font-size: 3.6mm; padding-top: 2.3mm; padding-bottom: 2.3mm; }
+  .order { font-size: 3.6mm; padding-top: 1.8mm; padding-bottom: 1.5mm; }
   .order .no { font-weight: 800; }
-  .order-barcode { text-align: center; padding-bottom: 2mm; }
-  #order-barcode { height: 9mm; width: auto; max-width: 88mm; display: inline-block; }
+  .order-barcode { text-align: center; padding-bottom: 1.5mm; }
+  #order-barcode { height: 7mm; width: auto; max-width: 88mm; display: inline-block; }
 
   /* ---- pengirim ---- */
   .sname { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; margin-top: 1mm; }
