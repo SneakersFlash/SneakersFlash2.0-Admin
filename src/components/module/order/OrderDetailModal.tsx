@@ -316,6 +316,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     // CODE128 hanya perlu alfanumerik; sekalian menutup kemungkinan nilai aneh
     // menembus ke dalam <script> di dokumen cetak.
     const barcodeValue = resi.replace(/[^A-Za-z0-9-]/g, '');
+    const orderBarcodeValue = String(order.orderNumber ?? '').replace(/[^A-Za-z0-9-]/g, '');
 
     // Jendela cetak dibuka sebagai about:blank, yang tidak punya base URL — URL
     // gambar harus absolut, kalau relatif tidak akan ketemu.
@@ -418,6 +419,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
   .order { font-size: 3.6mm; padding-top: 2.3mm; padding-bottom: 2.3mm; }
   .order .no { font-weight: 800; }
+  .order-barcode { text-align: center; padding-bottom: 2mm; }
+  #order-barcode { height: 9mm; width: auto; max-width: 88mm; display: inline-block; }
 
   /* ---- pengirim ---- */
   .sname { font-size: 3.4mm; font-weight: 700; padding-left: 1.5mm; margin-top: 1mm; }
@@ -479,6 +482,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
 
       <!-- NO. ORDER -->
       <div class="order pad">No. Order&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;<span class="no">${esc(order.orderNumber)}</span></div>
+      ${orderBarcodeValue ? '<div class="order-barcode pad"><svg id="order-barcode"></svg></div>' : ''}
 
       <div class="rule"></div>
 
@@ -516,6 +520,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     // harus kecetak — makanya print dipicu lewat onload/onerror plus timeout,
     // dan dijaga supaya cuma jalan sekali.
     var BARCODE_VALUE = ${JSON.stringify(barcodeValue)};
+    var ORDER_BARCODE_VALUE = ${JSON.stringify(orderBarcodeValue)};
     var alreadyPrinted = false;
 
     // Logo yang belum selesai dimuat akan hilang dari hasil cetak, jadi print
@@ -539,6 +544,13 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
         if (BARCODE_VALUE && window.JsBarcode) {
           JsBarcode("#barcode", BARCODE_VALUE, {
             format: "CODE128", width: 2, height: 70, displayValue: false, margin: 0
+          });
+        }
+      } catch (e) {}
+      try {
+        if (ORDER_BARCODE_VALUE && window.JsBarcode) {
+          JsBarcode("#order-barcode", ORDER_BARCODE_VALUE, {
+            format: "CODE128", width: 2, height: 40, displayValue: false, margin: 0
           });
         }
       } catch (e) {}
