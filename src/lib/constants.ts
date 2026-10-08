@@ -118,6 +118,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { title: 'Promo & Voucher', href: '/dashboard/promo-campaigns', icon: 'ticket' },
       { title: 'Price Drop', href: '/dashboard/price-drops', icon: 'trending-down' },
       { title: 'Merdeka Game', href: '/dashboard/game', icon: 'gamepad' },
+      { title: 'Tracking KOL / UTM', href: '/dashboard/attribution', icon: 'link' },
     ]
   },
   {

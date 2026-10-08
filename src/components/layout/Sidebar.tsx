@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Package, Tag, ShoppingCart, CreditCard,
   Truck, Ticket, Warehouse, Megaphone, Bell, Users, LogOut,
   ChevronRight, X, Handshake, Image as ImageIcon, LogsIcon,
-  Siren, Newspaper, Printer, Gamepad2, TrendingDown
+  Siren, Newspaper, Printer, Gamepad2, TrendingDown, Link2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,7 +39,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'newspaper':        Newspaper,
   'printer':          Printer,
   'gamepad':          Gamepad2,
-  'trending-down':    TrendingDown
+  'trending-down':    TrendingDown,
+  'link':             Link2
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
