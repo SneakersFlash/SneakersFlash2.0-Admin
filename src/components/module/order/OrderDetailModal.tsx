@@ -692,7 +692,15 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 <p className="font-medium text-gray-900">{order.address?.recipientName}</p>
                 <p>{order.address?.phone}</p>
                 <p className="mt-1">{order.address?.street}</p>
-                <p>{order.address?.city}, {order.address?.province} {order.address?.postalCode}</p>
+                {/* Kecamatan ada di snapshot order; provinsi belum pernah terkirim dari checkout, jadi dilewati kalau kosong */}
+                <p>
+                  {[
+                    order.address?.subdistrict && `Kec. ${order.address.subdistrict}`,
+                    order.address?.city,
+                    order.address?.province,
+                  ].filter(Boolean).join(', ')}
+                  {order.address?.postalCode ? ` ${order.address.postalCode}` : ''}
+                </p>
                 {order.address?.notes && (
                   <p className="mt-2 text-xs italic text-gray-500">Catatan: {order.address.notes}</p>
                 )}
