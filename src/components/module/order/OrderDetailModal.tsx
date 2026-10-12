@@ -53,7 +53,8 @@ const courierLogoFile = (courierName: string): string | null =>
 const BRANDS = {
   SF: {
     name: 'Sneakers Flash',
-    logo: '/images/Logo.png',
+    // Versi hitam pekat khusus label: petir kuning-oranye di Logo.png pudar di printer thermal.
+    logo: '/images/logo-label-sf.png',
     fallback: 'SNKRS FLASH',
     site: 'www.sneakersflash.com',
     phone: '0813 1391 1391',
