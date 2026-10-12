@@ -307,6 +307,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
     const note    = String(order.address?.notes ?? '').trim();
     const address = [
       order.address?.street,
+      order.address?.village ? `Kel. ${order.address.village}` : '',
       order.address?.subdistrict ? `Kec. ${order.address.subdistrict}` : '',
       order.address?.city,
       order.address?.province,
@@ -692,9 +693,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onRefresh }: 
                 <p className="font-medium text-gray-900">{order.address?.recipientName}</p>
                 <p>{order.address?.phone}</p>
                 <p className="mt-1">{order.address?.street}</p>
-                {/* Kecamatan ada di snapshot order; provinsi belum pernah terkirim dari checkout, jadi dilewati kalau kosong */}
+                {/* Kelurahan & provinsi baru tersimpan untuk order sejak 12 Okt 2026; order lama dilewati kalau kosong */}
                 <p>
                   {[
+                    order.address?.village && `Kel. ${order.address.village}`,
                     order.address?.subdistrict && `Kec. ${order.address.subdistrict}`,
                     order.address?.city,
                     order.address?.province,

@@ -31,6 +31,7 @@ export interface OrderAddress {
   street: string;
   subdistrict: string;      // Nama kecamatan, mis. "KEBAYORAN BARU"
   subdistrictId?: string;   // ID Komerce/RajaOngkir, mis. "17543"
+  village?: string;         // Nama kelurahan/desa (order sejak 12 Okt 2026)
   city: string;
   province: string;
   postalCode: string;
