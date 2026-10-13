@@ -265,7 +265,9 @@ export default function OrdersPage() {
             >
               {exporting
                 ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Mengekspor...</>
-                : <><Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV{status !== 'ALL' ? ` (${status})` : ''}</>
+                : <><Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
+                    {(dateFrom || dateTo) && ` · ${formatRangeLabel({ from: dateFrom ?? '', to: dateTo ?? '' })}`}
+                    {status !== 'ALL' ? ` (${status})` : ''}</>
               }
             </Button>
           </div>

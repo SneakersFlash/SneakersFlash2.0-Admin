@@ -17,7 +17,6 @@ const PRESETS: { value: DatePreset; label: string }[] = [
   { value: '7d',        label: '7 hari' },
   { value: '30d',       label: '30 hari' },
   { value: 'month',     label: 'Bulan ini' },
-  { value: 'custom',    label: 'Pilih tanggal' },
 ];
 
 // Tanggal hari ini menurut WIB, bukan zona browser — backend juga membaca
@@ -87,9 +86,7 @@ export default function DateRangeFilter({ preset, range, onChange, className }: 
                 type="button"
                 role="radio"
                 aria-checked={active}
-                onClick={() =>
-                  onChange(p.value, p.value === 'custom' ? range : rangeForPreset(p.value))
-                }
+                onClick={() => onChange(p.value, rangeForPreset(p.value))}
                 className={cn(
                   'h-8 px-3 rounded-full text-xs font-medium border transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1',
@@ -105,44 +102,43 @@ export default function DateRangeFilter({ preset, range, onChange, className }: 
         </div>
       </div>
 
-      {preset === 'custom' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500">
-            Dari
-            <input
-              type="date"
-              value={range.from}
-              max={range.to || undefined}
-              onChange={(e) => onChange('custom', { ...range, from: e.target.value })}
-              className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            />
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-gray-500">
-            s/d
-            <input
-              type="date"
-              value={range.to}
-              min={range.from || undefined}
-              onChange={(e) => onChange('custom', { ...range, to: e.target.value })}
-              className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            />
-          </label>
-          {(range.from || range.to) && (
-            <button
-              type="button"
-              onClick={() => onChange('all', { from: '', to: '' })}
-              className="flex items-center gap-1 h-8 px-2 text-xs text-gray-400 hover:text-gray-700"
-            >
-              <X className="w-3 h-3" aria-hidden /> Reset
-            </button>
-          )}
-          {invalid && (
-            <span role="alert" className="text-xs text-red-600">
-              Tanggal awal lebih besar dari tanggal akhir.
-            </span>
-          )}
-        </div>
-      )}
+      {/* Kolom tanggal selalu tampil: preset mengisinya, mengubahnya = rentang custom */}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-xs text-gray-500">
+          Dari
+          <input
+            type="date"
+            value={range.from}
+            max={range.to || undefined}
+            onChange={(e) => onChange('custom', { ...range, from: e.target.value })}
+            className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-gray-500">
+          s/d
+          <input
+            type="date"
+            value={range.to}
+            min={range.from || undefined}
+            onChange={(e) => onChange('custom', { ...range, to: e.target.value })}
+            className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          />
+        </label>
+        {(range.from || range.to) && (
+          <button
+            type="button"
+            onClick={() => onChange('all', { from: '', to: '' })}
+            className="flex items-center gap-1 h-8 px-2 text-xs text-gray-400 hover:text-gray-700"
+          >
+            <X className="w-3 h-3" aria-hidden /> Reset
+          </button>
+        )}
+        {invalid && (
+          <span role="alert" className="text-xs text-red-600">
+            Tanggal awal lebih besar dari tanggal akhir.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
