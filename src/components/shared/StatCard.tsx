@@ -42,7 +42,7 @@ export default function StatCard({
             </div>
           ) : (
             <>
-              <p className="mt-1 text-2xl font-bold text-gray-900 truncate">
+              <p className="mt-1 text-xl 2xl:text-2xl font-bold text-gray-900 tabular-nums truncate">
                 {value}
               </p>
               {subtitle && (

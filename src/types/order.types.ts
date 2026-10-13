@@ -157,6 +157,8 @@ export interface OrderQueryParams {
   status?: OrderStatus | 'ALL' | '';
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  dateFrom?: string; // "YYYY-MM-DD", hari kalender WIB
+  dateTo?: string;
 }
 
 // ─── Meta ─────────────────────────────────────────────────────────────────────

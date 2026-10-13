@@ -21,6 +21,9 @@ import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import type { Order, OrderStatus } from '@/types/order.types';
 import OrderDetailModal from '@/components/module/order/OrderDetailModal';
 import PlatformBadge from '@/components/shared/PlatformBadge';
+import DateRangeFilter, {
+  formatRangeLabel, type DatePreset, type DateRange,
+} from '@/components/shared/DateRangeFilter';
 
 const STATUS_OPTIONS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'ALL',             label: 'Semua Status' },
@@ -54,10 +57,14 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // --- Export State ---
-  const [exporting, setExporting]     = useState(false);
-  const [exportDateFrom, setExportDateFrom] = useState('');
-  const [exportDateTo, setExportDateTo]     = useState('');
+  // --- Filter tanggal (dipakai tabel & export) ---
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [dateRange, setDateRange]   = useState<DateRange>({ from: '', to: '' });
+  const rangeInvalid = !!dateRange.from && !!dateRange.to && dateRange.from > dateRange.to;
+  const dateFrom = rangeInvalid ? undefined : dateRange.from || undefined;
+  const dateTo   = rangeInvalid ? undefined : dateRange.to   || undefined;
+
+  const [exporting, setExporting] = useState(false);
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -79,6 +86,8 @@ export default function OrdersPage() {
         limit: 10,
         status: status === 'ALL' ? undefined : status,
         search: debouncedSearch || undefined,
+        dateFrom,
+        dateTo,
       });
       setOrders(res.data);
       // FIX: backend kirim res.meta langsung dengan field yang benar (lastPage, dll)
@@ -96,7 +105,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, status, debouncedSearch]);
+  }, [page, status, debouncedSearch, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchOrders();
@@ -121,8 +130,8 @@ export default function OrdersPage() {
       await OrdersService.exportOrders({
         status:   status !== 'ALL' ? status : undefined,
         search:   debouncedSearch || undefined,
-        dateFrom: exportDateFrom || undefined,
-        dateTo:   exportDateTo   || undefined,
+        dateFrom,
+        dateTo,
       });
       toast.success('File CSV berhasil diunduh!');
     } catch (error) {
@@ -229,51 +238,36 @@ export default function OrdersPage() {
               />
             </div>
             <div className="text-sm text-gray-500 font-medium px-2 shrink-0">
-              Menampilkan <span className="text-gray-900 font-bold">{orders.length}</span> pesanan
+              <span className="text-gray-900 font-bold">{(meta?.total ?? 0).toLocaleString('id-ID')}</span> pesanan
+              {(dateFrom || dateTo) && (
+                <span className="text-gray-400"> · {formatRangeLabel({ from: dateFrom ?? '', to: dateTo ?? '' })}</span>
+              )}
             </div>
           </div>
 
-          {/* Row 2: Export controls */}
-          <div className="flex flex-wrap gap-2 items-center border-t border-gray-100 pt-3">
-            <span className="text-xs font-medium text-gray-500 mr-1">Export CSV:</span>
-            <div className="flex items-center gap-1">
-              <label className="text-xs text-gray-500 shrink-0">Dari</label>
-              <Input
-                type="date"
-                value={exportDateFrom}
-                onChange={(e) => setExportDateFrom(e.target.value)}
-                className="h-8 text-xs w-36 bg-gray-50 border-gray-200"
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <label className="text-xs text-gray-500 shrink-0">s/d</label>
-              <Input
-                type="date"
-                value={exportDateTo}
-                onChange={(e) => setExportDateTo(e.target.value)}
-                className="h-8 text-xs w-36 bg-gray-50 border-gray-200"
-              />
-            </div>
+          {/* Row 2: Filter tanggal + Export */}
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 border-t border-gray-100 pt-3">
+            <DateRangeFilter
+              preset={datePreset}
+              range={dateRange}
+              onChange={(preset, range) => {
+                setDatePreset(preset);
+                setDateRange(range);
+                setPage(1);
+              }}
+            />
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              disabled={exporting}
-              className="h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+              disabled={exporting || rangeInvalid}
+              className="h-8 shrink-0 self-start border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
             >
               {exporting
                 ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Mengekspor...</>
-                : <><Download className="w-3.5 h-3.5 mr-1.5" /> Export{status !== 'ALL' ? ` (${status})` : ''}</>
+                : <><Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV{status !== 'ALL' ? ` (${status})` : ''}</>
               }
             </Button>
-            {(exportDateFrom || exportDateTo) && (
-              <button
-                onClick={() => { setExportDateFrom(''); setExportDateTo(''); }}
-                className="text-xs text-gray-400 hover:text-gray-600 underline"
-              >
-                Reset tanggal
-              </button>
-            )}
           </div>
         </div>
       </div>
